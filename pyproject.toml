@@ -1,0 +1,25 @@
+[project]
+name = "decomposicao-matrizes"
+version = "0.1.0"
+description = "Laboratório didático de decomposições matriciais com rastreamento dos cálculos"
+readme = "README.md"
+requires-python = ">=3.11,<3.15"
+dependencies = ["numpy>=2.2,<3", "pandas>=2.2,<3", "streamlit>=1.45,<2"]
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "ruff>=0.11,<1"]
+
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/matrixlab"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
