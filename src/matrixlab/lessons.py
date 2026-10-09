@@ -7,10 +7,6 @@ def lesson_for(method, shape):
         return rf"""
 ### Como interpretar a decomposição QR
 
-**Base didática:** Thelmo de Araujo, *Fundamentos de Análise de Dados — Aula 10*,
-pp. 5–27 (ortogonalidade, projeções, Gram–Schmidt e QR) e pp. 28–32 (regressão).
-A matriz do exemplo da aula está disponível no seletor de exemplos.
-
 **1. O que queremos construir?** Escrevemos $A=[a_1\;\cdots\;a_n]=QR$.
 As colunas de Q têm norma 1 e produto interno zero entre si.
 R guarda os coeficientes que permitem reconstruir cada coluna original.
@@ -71,10 +67,6 @@ Essas variantes complementam o Gram–Schmidt apresentado na Aula 10.
     if method == "svd":
         return rf"""
 ### Como interpretar a decomposição SVD
-
-**Base didática:** Thelmo de Araujo, *Fundamentos de Análise de Dados — Aula 18*,
-pp. 4–15 (construção e nomenclatura), pp. 16–28 (dimensões e SVD completa)
-e pp. 29–31 (redução de dimensionalidade). Usamos A onde a aula escreve X.
 
 **1. Por que olhar para $A^TA$?** Essa matriz é simétrica e positiva semidefinida:
 $z^TA^TAz=\|Az\|_2^2\ge0$. Seus autovalores são não negativos, e seus autovetores

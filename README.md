@@ -122,9 +122,8 @@ for etapa in fatoracao.steps:
 - [Streamlit: execução e interface](https://docs.streamlit.io/) e [testes AppTest](https://docs.streamlit.io/develop/api-reference/app-testing/st.testing.v1.apptest).
 - [LAPACK Users' Guide](https://www.netlib.org/lapack/lug/) e [problemas de mínimos quadrados](https://www.netlib.org/lapack/lug/node27.html).
 - [NumPy: autovalores e autovetores simétricos](https://numpy.org/doc/stable/reference/generated/numpy.linalg.eigh.html).
-- Thelmo de Araujo, *Fundamentos de Análise de Dados — Aula 10*: QR, projeções e Gram–Schmidt. Material fornecido pelo usuário; cópia em `docs/materiais/fad_aula10_handout.pdf`.
-- Thelmo de Araujo, *Fundamentos de Análise de Dados — Aula 18*: SVD reduzida/completa e redução de dimensionalidade. Material fornecido pelo usuário; cópia em `docs/materiais/fad_aula18_handout.pdf`.
-- Thelmo de Araujo, *Álgebra Linear — Seção 1.3: Decomposição LU*. Material fornecido pelo usuário; cópia em `docs/materiais/al_secao1-3_handout.pdf`.
+- Thelmo de Araujo, *Fundamentos de Análise de Dados — Aula 10*: QR, projeções e Gram–Schmidt. Material fornecido pelo usuário;
+- Thelmo de Araujo, *Fundamentos de Análise de Dados — Aula 18*: SVD reduzida/completa e redução de dimensionalidade. Material fornecido pelo usuário; 
 - Golub e Van Loan, *Matrix Computations*, 4ª edição; Trefethen e Bau, *Numerical Linear Algebra*.
 
 ## Licença
