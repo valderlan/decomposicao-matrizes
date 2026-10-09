@@ -28,7 +28,29 @@ METHODS = {
 
 def _square(a):
     if a.shape[0] != a.shape[1]:
-        raise MethodError("Esta variante exige matriz quadrada; a entrada é retangular.")
+        raise MethodError(
+            "Esta variante exige matriz quadrada; a entrada é retangular."
+        )
+
+
+def _mark(row, col, role, label):
+    return {"row": int(row), "col": int(col), "role": role, "label": label}
+
+
+def _row_marks(row, start_col, end_col, role, label):
+    return [_mark(row, col, role, label) for col in range(start_col, end_col)]
+
+
+def _col_marks(col, start_row, end_row, role, label):
+    return [_mark(row, col, role, label) for row in range(start_row, end_row)]
+
+
+def _changed_marks(
+    before, after, *, role="updated", label="Entrada modificada", atol=0.0, rtol=0.0
+):
+    changed = ~np.isclose(before, after, atol=atol, rtol=rtol)
+    rows, cols = np.where(changed)
+    return [_mark(row, col, role, label) for row, col in zip(rows, cols)]
 
 
 def _lu(a, variant, trace, rtol):
@@ -36,13 +58,19 @@ def _lu(a, variant, trace, rtol):
     n = a.shape[0]
     l, u, p, c = np.eye(n), a.copy(), np.eye(n), np.eye(n)
     tol = threshold(a, rtol)
-    identity = "PAC=LU" if variant == "lu_total" else "PA=LU" if variant == "lu_partial" else "A=LU"
+    identity = (
+        "PAC=LU"
+        if variant == "lu_total"
+        else "PA=LU" if variant == "lu_partial" else "A=LU"
+    )
     permutation_intro = (
         "P registra trocas de linhas e C registra trocas de colunas. "
         if variant == "lu_total"
-        else "P registra trocas de linhas. Não trocamos colunas nesta variante. "
-        if variant == "lu_partial"
-        else "Nesta variante não trocamos linhas nem colunas. "
+        else (
+            "P registra trocas de linhas. Não trocamos colunas nesta variante. "
+            if variant == "lu_partial"
+            else "Nesta variante não trocamos linhas nem colunas. "
+        )
     )
     initial_formula = identity + r",\qquad L=I,\quad U=A"
     if variant == "lu_total":
@@ -85,21 +113,39 @@ def _lu(a, variant, trace, rtol):
             "No pivotamento parcial, escolhemos o elemento de maior módulo na coluna ativa. "
             "Isso reduz multiplicadores grandes nesta etapa, sem garantir bom condicionamento de A."
             if variant == "lu_partial"
-            else "No pivotamento total, escolhemos o elemento de maior módulo no bloco ainda não eliminado. "
-            "Podemos trocar linhas e colunas, reordenando também as variáveis."
-            if variant == "lu_total"
-            else "Sem pivotamento, usamos o elemento diagonal atual. Ele precisa ser significativo "
-            "para dividir entradas abaixo dele; um zero pode impedir esta variante."
+            else (
+                "No pivotamento total, escolhemos o elemento de maior módulo no bloco ainda não eliminado. "
+                "Podemos trocar linhas e colunas, reordenando também as variáveis."
+                if variant == "lu_total"
+                else "Sem pivotamento, usamos o elemento diagonal atual. Ele precisa ser significativo "
+                "para dividir entradas abaixo dele; um zero pode impedir esta variante."
+            )
         )
         trace.add(
             f"Escolher o pivô da etapa {k + 1}",
             pivot_rule + f" O candidato está na posição ({row + 1},{col + 1}) e vale "
             f"{u[row, col]:.10g}. O limiar numérico desta matriz é {tol:.4g}.",
             rf"m_{{i,{k + 1}}}=u_{{i,{k + 1}}}/u_{{{k + 1},{k + 1}}}",
+            objective=(
+                "Identificar o pivô da coluna/bloco ativo antes de calcular multiplicadores "
+                "e eliminações desta etapa."
+            ),
+            operation=rf"\text{{pivô}}\leftarrow U_{{{row + 1},{col + 1}}}",
+            matrix_order=["U_antes", "bloco_ativo"],
+            highlights={
+                "U_antes": [_mark(row, col, "pivot", "Pivô candidato")]
+                + _col_marks(k, k, n, "active", "Coluna ativa"),
+            },
+            legend=[
+                "Vermelho: pivô escolhido.",
+                "Laranja: coluna ativa da etapa.",
+            ],
+            U_antes=u,
             bloco_ativo=u[k:, k:],
         )
         if row != k:
             before_swap = u.copy()
+            before_l = l.copy()
             swap = np.eye(n)
             swap[[k, row], :] = swap[[row, k], :]
             used_permutations = True
@@ -113,14 +159,50 @@ def _lu(a, variant, trace, rtol):
                 "apenas os multiplicadores de colunas já processadas. Essa atualização mantém "
                 "o vínculo entre as linhas eliminadas e os multiplicadores que as produziram.",
                 r"U\leftarrow SU,\qquad P\leftarrow SP",
-                antes=before_swap,
+                objective=(
+                    "Escolher um pivô numericamente mais estável movendo a linha de maior módulo "
+                    "para a posição ativa da eliminação."
+                ),
+                operation=rf"L_{{{k + 1}}}\leftrightarrow L_{{{row + 1}}}",
+                matrix_order=[
+                    "U_antes",
+                    "U_depois",
+                    "L_antes",
+                    "L_depois",
+                    "troca",
+                    "P",
+                ],
+                highlights={
+                    "U_antes": _row_marks(k, 0, n, "active", "Linha pivô atual")
+                    + _row_marks(row, 0, n, "target", "Linha escolhida"),
+                    "U_depois": _row_marks(k, 0, n, "updated", "Linha após troca")
+                    + _row_marks(row, 0, n, "updated", "Linha após troca"),
+                    "L_antes": _row_marks(
+                        k, 0, k, "active", "Multiplicadores da linha pivô"
+                    )
+                    + _row_marks(
+                        row, 0, k, "target", "Multiplicadores da linha trocada"
+                    ),
+                    "L_depois": _row_marks(
+                        k, 0, k, "updated", "Multiplicadores realocados"
+                    )
+                    + _row_marks(row, 0, k, "updated", "Multiplicadores realocados"),
+                },
+                legend=[
+                    "Laranja: linha pivô ativa antes da troca.",
+                    "Azul: linha candidata escolhida pelo pivotamento.",
+                    "Verde: linhas atualizadas após a troca.",
+                ],
+                U_antes=before_swap,
+                U_depois=u,
+                L_antes=before_l,
+                L_depois=l,
                 troca=swap,
                 P=p,
-                L=l,
-                U=u,
             )
         if col != k:
             before_swap = u.copy()
+            before_c = c.copy()
             swap = np.eye(n)
             swap[:, [k, col]] = swap[:, [col, k]]
             used_permutations = True
@@ -132,10 +214,32 @@ def _lu(a, variant, trace, rtol):
                 "As colunas representam variáveis: resolveremos na nova ordem e recuperaremos "
                 "a ordem original por x=Cz. Esta T é uma permutação, não a transposta de A.",
                 r"U\leftarrow UT,\qquad C\leftarrow CT,\qquad PAC=LU",
-                antes=before_swap,
+                objective=(
+                    "Trazer para a coluna ativa um pivô de maior módulo e registrar a reordenação "
+                    "das variáveis por meio de C."
+                ),
+                operation=rf"C_{{{k + 1}}}\leftrightarrow C_{{{col + 1}}}",
+                matrix_order=["U_antes", "U_depois", "C_antes", "C_depois", "troca"],
+                highlights={
+                    "U_antes": _col_marks(k, 0, n, "active", "Coluna ativa")
+                    + _col_marks(col, 0, n, "target", "Coluna escolhida"),
+                    "U_depois": _col_marks(k, 0, n, "updated", "Coluna após troca")
+                    + _col_marks(col, 0, n, "updated", "Coluna após troca"),
+                    "C_antes": _col_marks(k, 0, n, "active", "Variáveis na ordem atual")
+                    + _col_marks(col, 0, n, "target", "Variáveis reordenadas"),
+                    "C_depois": _col_marks(k, 0, n, "updated", "Ordem atualizada")
+                    + _col_marks(col, 0, n, "updated", "Ordem atualizada"),
+                },
+                legend=[
+                    "Laranja: coluna ativa antes da troca.",
+                    "Azul: coluna escolhida pelo pivotamento total.",
+                    "Verde: colunas após a troca.",
+                ],
+                U_antes=before_swap,
+                U_depois=u,
+                C_antes=before_c,
+                C_depois=c,
                 troca=swap,
-                C=c,
-                U=u,
             )
         pivot = u[k, k]
         if abs(pivot) <= tol:
@@ -156,6 +260,7 @@ def _lu(a, variant, trace, rtol):
             continue
         for i in range(k + 1, n):
             before = u.copy()
+            before_l = l.copy()
             multiplier = u[i, k] / pivot
             trace.add(
                 f"Calcular o multiplicador m[{i + 1},{k + 1}]",
@@ -164,11 +269,33 @@ def _lu(a, variant, trace, rtol):
                 "Esse multiplicador será guardado em L. Na matriz elementar de eliminação "
                 "entra o seu oposto; na inversa, entra o próprio multiplicador.",
                 rf"m_{{{i + 1},{k + 1}}}=\frac{{u_{{{i + 1},{k + 1}}}}}{{u_{{{k + 1},{k + 1}}}}},\qquad l_{{{i + 1},{k + 1}}}=m_{{{i + 1},{k + 1}}}",
-                calculations=[
-                    rf"m_{{{i + 1},{k + 1}}}=\frac{{{number(u[i, k])}}}{{{number(pivot)}}}={number(multiplier)}"
-                ]
-                if trace.enabled
-                else [],
+                objective=(
+                    "Calcular o fator que transforma a entrada abaixo do pivô em zero na coluna ativa."
+                ),
+                operation=rf"m_{{{i + 1},{k + 1}}}=\frac{{U_{{{i + 1},{k + 1}}}}}{{U_{{{k + 1},{k + 1}}}}}",
+                matrix_order=["U_antes", "L_antes"],
+                highlights={
+                    "U_antes": [
+                        _mark(k, k, "pivot", "Pivô"),
+                        _mark(i, k, "target", "Entrada a eliminar"),
+                    ]
+                    + _row_marks(k, k, n, "active", "Linha pivô"),
+                    "L_antes": [_mark(i, k, "target", "Posição que guardará m")],
+                },
+                legend=[
+                    "Vermelho: pivô usado na divisão.",
+                    "Azul: entrada da coluna ativa que será eliminada.",
+                    "Laranja: linha pivô usada na combinação linear.",
+                ],
+                calculations=(
+                    [
+                        rf"m_{{{i + 1},{k + 1}}}=\frac{{{number(u[i, k])}}}{{{number(pivot)}}}={number(multiplier)}"
+                    ]
+                    if trace.enabled
+                    else []
+                ),
+                U_antes=before,
+                L_antes=before_l,
                 linha_pivo=u[k : k + 1, :],
                 linha_a_eliminar=u[i : i + 1, :],
             )
@@ -188,7 +315,7 @@ def _lu(a, variant, trace, rtol):
                     for j in range(k, n)
                 )
             trace.add(
-                f"Eliminar U[{i + 1},{k + 1}]",
+                f"Eliminar a entrada U[{i + 1},{k + 1}] usando a linha {k + 1}",
                 f"Subtraímos {multiplier:.10g} vezes a linha {k + 1} da linha {i + 1}. "
                 + (
                     "Como o multiplicador é negativo, subtrair esse múltiplo equivale a somar "
@@ -201,15 +328,57 @@ def _lu(a, variant, trace, rtol):
                 "E⁻¹ desfaz a operação; L registra os multiplicadores das operações inversas.",
                 rf"L_{{{i + 1},{k + 1}}}=\frac{{U_{{{i + 1},{k + 1}}}}}{{U_{{{k + 1},{k + 1}}}}},\quad "
                 rf"\mathrm{{linha}}_{{{i + 1}}}\leftarrow\mathrm{{linha}}_{{{i + 1}}}-L_{{{i + 1},{k + 1}}}\mathrm{{linha}}_{{{k + 1}}}",
-                calculations=[
-                    rf"u_{{{i + 1},{j + 1}}}^{{novo}}=({number(before[i, j])})-({number(multiplier)})({number(before[k, j])})\approx {number(u[i, j])}"
-                    for j in range(k, n)
-                ]
-                if trace.enabled
-                else [],
-                L=l,
-                U=u,
+                objective=(
+                    "Transformar a entrada abaixo do pivô em zero para manter U triangular superior "
+                    "e atualizar L com o multiplicador usado."
+                ),
+                operation=rf"\mathrm{{linha}}_{{{i + 1}}}\leftarrow\mathrm{{linha}}_{{{i + 1}}}-m_{{{i + 1},{k + 1}}}\mathrm{{linha}}_{{{k + 1}}}",
+                calculations=(
+                    [
+                        rf"u_{{{i + 1},{j + 1}}}^{{novo}}=({number(before[i, j])})-({number(multiplier)})({number(before[k, j])})\approx {number(u[i, j])}"
+                        for j in range(k, n)
+                    ]
+                    if trace.enabled
+                    else []
+                ),
+                matrix_order=[
+                    "U_antes",
+                    "U_depois",
+                    "L_antes",
+                    "L_depois",
+                    "E",
+                    "E_inversa",
+                ],
+                highlights={
+                    "U_antes": [
+                        _mark(k, k, "pivot", "Pivô"),
+                        _mark(i, k, "target", "Entrada a eliminar"),
+                    ]
+                    + _row_marks(k, k, n, "active", "Linha pivô")
+                    + _row_marks(i, k, n, "target", "Linha atualizada"),
+                    "U_depois": _changed_marks(
+                        before,
+                        u,
+                        role="updated",
+                        label="Entrada atualizada",
+                        atol=0.0,
+                        rtol=0.0,
+                    ),
+                    "L_antes": [_mark(i, k, "target", "Posição de m em L")],
+                    "L_depois": [_mark(i, k, "updated", "Multiplicador armazenado")],
+                },
+                legend=[
+                    "Vermelho: pivô da etapa.",
+                    "Azul: entrada eliminada e linha que recebe a operação.",
+                    "Laranja: linha pivô usada no cálculo.",
+                    "Verde: entradas alteradas depois da eliminação.",
+                ],
                 U_antes=before,
+                U_depois=u,
+                L_antes=before_l,
+                L_depois=l,
+                U=u,
+                L=l,
                 E=elementary,
                 E_inversa=inverse,
             )
@@ -243,15 +412,36 @@ def _lu(a, variant, trace, rtol):
             "e dividimos cada linha j de U por dⱼ. O produto se mantém, pois DD⁻¹=I. "
             "Assim Crout termina com diagonal de U igual a 1; Doolittle tem diagonal de L igual a 1.",
             r"L_C=L_DD,\quad U_C=D^{-1}U_D",
-            calculations=[
-                rf"(L_C)_{{{i + 1},{j + 1}}}=({number(before_l[i, j])})({number(diagonal[j])})={number(l[i, j])},\quad (U_C)_{{{i + 1},{j + 1}}}=\frac{{{number(before_u[i, j])}}}{{{number(diagonal[i])}}}={number(u[i, j])}"
-                for i in range(n)
-                for j in range(n)
-            ]
-            if trace.enabled
-            else [],
-            L=l,
-            U=u,
+            objective=(
+                "Converter os fatores temporários de Doolittle para a convenção de Crout "
+                "sem alterar o produto final."
+            ),
+            operation=r"L\leftarrow LD,\qquad U\leftarrow D^{-1}U",
+            calculations=(
+                [
+                    rf"(L_C)_{{{i + 1},{j + 1}}}=({number(before_l[i, j])})({number(diagonal[j])})={number(l[i, j])},\quad (U_C)_{{{i + 1},{j + 1}}}=\frac{{{number(before_u[i, j])}}}{{{number(diagonal[i])}}}={number(u[i, j])}"
+                    for i in range(n)
+                    for j in range(n)
+                ]
+                if trace.enabled
+                else []
+            ),
+            matrix_order=["L_antes", "L_depois", "U_antes", "U_depois", "D"],
+            highlights={
+                "L_depois": _changed_marks(
+                    before_l, l, role="updated", label="Coluna reescalada"
+                ),
+                "U_depois": _changed_marks(
+                    before_u, u, role="updated", label="Linha reescalada"
+                ),
+            },
+            legend=[
+                "Verde: entradas alteradas no reescalonamento Crout.",
+            ],
+            L_antes=before_l,
+            L_depois=l,
+            U_antes=before_u,
+            U_depois=u,
             D=np.diag(diagonal),
         )
     factors = {"L": l, "U": u}
@@ -265,9 +455,11 @@ def _lu(a, variant, trace, rtol):
         + (
             "Nesta variante com pivotamento total, temos PAC=LU: resolver Ly=Pb, Uz=y e x=Cz."
             if variant == "lu_total"
-            else "Com pivotamento parcial, temos PA=LU: resolver Ly=Pb e Ux=y."
-            if variant == "lu_partial"
-            else "Sem pivotamento, temos A=LU: resolver Ly=b e Ux=y."
+            else (
+                "Com pivotamento parcial, temos PA=LU: resolver Ly=Pb e Ux=y."
+                if variant == "lu_partial"
+                else "Sem pivotamento, temos A=LU: resolver Ly=b e Ux=y."
+            )
         )
         + " Não precisamos calcular a inversa de A. Se U tiver pivôs numericamente "
         "nulos, a fatoração pode existir sem que estas substituições determinem solução única.",
@@ -285,7 +477,9 @@ def _cholesky(a, variant, trace, rtol):
     tol = threshold(a, rtol)
     asymmetry = np.max(np.abs(a - a.T))
     if asymmetry > tol:
-        raise MethodError(f"A não é simétrica: max|A−Aᵀ|={asymmetry:.6g}, limiar={tol:.3g}.")
+        raise MethodError(
+            f"A não é simétrica: max|A−Aᵀ|={asymmetry:.6g}, limiar={tol:.3g}."
+        )
     w = (a + a.T) / 2
     trace.add(
         "Verificar simetria",
@@ -298,7 +492,11 @@ def _cholesky(a, variant, trace, rtol):
     l = np.eye(n) if variant == "ldlt" else np.zeros_like(a)
     d = np.zeros(n)
     for j in range(n):
-        correction = np.sum(l[j, :j] ** 2 * d[:j]) if variant == "ldlt" else l[j, :j] @ l[j, :j]
+        before_l = l.copy()
+        before_d = d.copy()
+        correction = (
+            np.sum(l[j, :j] ** 2 * d[:j]) if variant == "ldlt" else l[j, :j] @ l[j, :j]
+        )
         diagonal_terms = (
             products(l[j, :j], l[j, :j], d[:j])
             if variant == "ldlt"
@@ -317,13 +515,34 @@ def _cholesky(a, variant, trace, rtol):
                 f"Calcular D[{j + 1},{j + 1}]",
                 f"Subtraímos a contribuição anterior: {w[j, j]:.10g} − {correction:.10g} = {pivot:.10g}.",
                 r"d_j=a_{jj}-\sum_{k<j} l_{jk}^2d_k",
-                calculations=[
-                    rf"d_{{{j + 1}}}=({number(w[j, j])})-({diagonal_terms})={number(pivot)}"
-                ]
-                if trace.enabled
-                else [],
-                L=l,
-                D=np.diag(d),
+                objective=(
+                    "Atualizar o pivô de Schur na diagonal de D para prosseguir com LDLᵀ sem raízes."
+                ),
+                operation=rf"D_{{{j + 1},{j + 1}}}\leftarrow a_{{{j + 1},{j + 1}}}-\sum_{{k<{j + 1}}}l_{{{j + 1}k}}^2d_k",
+                calculations=(
+                    [
+                        rf"d_{{{j + 1}}}=({number(w[j, j])})-({diagonal_terms})={number(pivot)}"
+                    ]
+                    if trace.enabled
+                    else []
+                ),
+                matrix_order=["D_antes", "D_depois", "L_antes", "L_depois"],
+                highlights={
+                    "D_antes": [_mark(j, j, "target", "Diagonal a calcular")],
+                    "D_depois": [_mark(j, j, "updated", "Diagonal calculada")],
+                    "L_depois": _row_marks(
+                        j, 0, j, "active", "Entradas já usadas na correção"
+                    ),
+                },
+                legend=[
+                    "Azul: posição que será calculada.",
+                    "Laranja: entradas de L usadas na soma de correção.",
+                    "Verde: entrada calculada neste passo.",
+                ],
+                L_antes=before_l,
+                L_depois=l,
+                D_antes=np.diag(before_d),
+                D_depois=np.diag(d),
             )
         else:
             l[j, j] = np.sqrt(pivot)
@@ -331,16 +550,35 @@ def _cholesky(a, variant, trace, rtol):
                 f"Calcular L[{j + 1},{j + 1}]",
                 f"A raiz do pivô positivo {pivot:.10g} é {l[j, j]:.10g}.",
                 r"l_{jj}=\sqrt{a_{jj}-\sum_{k<j}l_{jk}^2}",
-                calculations=[
-                    rf"l_{{{j + 1},{j + 1}}}=\sqrt{{({number(w[j, j])})-({diagonal_terms})}}=\sqrt{{{number(pivot)}}}\approx {number(l[j, j])}"
-                ]
-                if trace.enabled
-                else [],
-                L=l,
+                objective="Definir a nova diagonal positiva de L para manter A=LLᵀ.",
+                operation=rf"L_{{{j + 1},{j + 1}}}\leftarrow \sqrt{{a_{{{j + 1},{j + 1}}}-\sum_{{k<{j + 1}}}l_{{{j + 1}k}}^2}}",
+                calculations=(
+                    [
+                        rf"l_{{{j + 1},{j + 1}}}=\sqrt{{({number(w[j, j])})-({diagonal_terms})}}=\sqrt{{{number(pivot)}}}\approx {number(l[j, j])}"
+                    ]
+                    if trace.enabled
+                    else []
+                ),
+                matrix_order=["L_antes", "L_depois"],
+                highlights={
+                    "L_antes": [_mark(j, j, "target", "Diagonal a calcular")]
+                    + _row_marks(j, 0, j, "active", "Termos já calculados"),
+                    "L_depois": [_mark(j, j, "updated", "Diagonal calculada")],
+                },
+                legend=[
+                    "Azul: entrada da diagonal em cálculo.",
+                    "Laranja: termos usados na correção.",
+                    "Verde: novo valor inserido em L.",
+                ],
+                L_antes=before_l,
+                L_depois=l,
             )
         for i in range(j + 1, n):
+            before_l = l.copy()
             correction = (
-                np.sum(l[i, :j] * l[j, :j] * d[:j]) if variant == "ldlt" else l[i, :j] @ l[j, :j]
+                np.sum(l[i, :j] * l[j, :j] * d[:j])
+                if variant == "ldlt"
+                else l[i, :j] @ l[j, :j]
             )
             denominator = d[j] if variant == "ldlt" else l[j, j]
             correction_terms = (
@@ -352,15 +590,37 @@ def _cholesky(a, variant, trace, rtol):
             trace.add(
                 f"Calcular L[{i + 1},{j + 1}]",
                 f"({w[i, j]:.10g} − {correction:.10g}) / {denominator:.10g} = {l[i, j]:.10g}.",
-                r"l_{ij}=\frac{a_{ij}-\sum_{k<j}l_{ik}l_{jk}d_k}{d_j}"
-                if variant == "ldlt"
-                else r"l_{ij}=\frac{a_{ij}-\sum_{k<j}l_{ik}l_{jk}}{l_{jj}}",
-                calculations=[
-                    rf"l_{{{i + 1},{j + 1}}}=\frac{{({number(w[i, j])})-({correction_terms})}}{{{number(denominator)}}}\approx {number(l[i, j])}"
-                ]
-                if trace.enabled
-                else [],
-                L=l,
+                (
+                    r"l_{ij}=\frac{a_{ij}-\sum_{k<j}l_{ik}l_{jk}d_k}{d_j}"
+                    if variant == "ldlt"
+                    else r"l_{ij}=\frac{a_{ij}-\sum_{k<j}l_{ik}l_{jk}}{l_{jj}}"
+                ),
+                objective=(
+                    "Atualizar uma entrada abaixo da diagonal usando apenas valores já calculados "
+                    "na coluna atual e nas anteriores."
+                ),
+                operation=rf"L_{{{i + 1},{j + 1}}}\leftarrow \frac{{a_{{{i + 1},{j + 1}}}-\text{{correção}}}}{{{number(denominator)}}}",
+                calculations=(
+                    [
+                        rf"l_{{{i + 1},{j + 1}}}=\frac{{({number(w[i, j])})-({correction_terms})}}{{{number(denominator)}}}\approx {number(l[i, j])}"
+                    ]
+                    if trace.enabled
+                    else []
+                ),
+                matrix_order=["L_antes", "L_depois"],
+                highlights={
+                    "L_antes": [_mark(i, j, "target", "Entrada em cálculo")]
+                    + _row_marks(i, 0, j, "active", "Termos l_{ik} usados")
+                    + _row_marks(j, 0, j, "active", "Termos l_{jk} usados"),
+                    "L_depois": [_mark(i, j, "updated", "Entrada atualizada")],
+                },
+                legend=[
+                    "Azul: entrada que está sendo calculada.",
+                    "Laranja: entradas já conhecidas usadas na correção.",
+                    "Verde: valor inserido após a operação.",
+                ],
+                L_antes=before_l,
+                L_depois=l,
             )
     if variant == "ldlt":
         factors = {"L": l, "D": np.diag(d)}
@@ -371,7 +631,9 @@ def _cholesky(a, variant, trace, rtol):
 def _gram_schmidt(a, variant, trace, rtol):
     m, n = a.shape
     if m < n:
-        raise MethodError("Gram–Schmidt reduzido exige m ≥ n e colunas linearmente independentes.")
+        raise MethodError(
+            "Gram–Schmidt reduzido exige m ≥ n e colunas linearmente independentes."
+        )
     q, r = np.zeros((m, n)), np.zeros((n, n))
     tol = threshold(a, rtol)
     trace.add(
@@ -401,7 +663,8 @@ def _gram_schmidt(a, variant, trace, rtol):
             r[i, j] = q[:, i] @ source
             if trace.enabled:
                 calculation = " + ".join(
-                    f"({left:.8g} × {right:.8g})" for left, right in zip(q[:, i], source)
+                    f"({left:.8g} × {right:.8g})"
+                    for left, right in zip(q[:, i], source)
                 )
                 trace.add(
                     f"Calcular o coeficiente r[{i + 1},{j + 1}]",
@@ -413,7 +676,11 @@ def _gram_schmidt(a, variant, trace, rtol):
                         else "O modificado usa o residual w atualizado."
                     ),
                     rf"r_{{{i + 1},{j + 1}}}=q_{{{i + 1}}}^T"
-                    + (rf"a_{{{j + 1}}}" if variant == "qr_classical" else rf"w_{{{j + 1}}}"),
+                    + (
+                        rf"a_{{{j + 1}}}"
+                        if variant == "qr_classical"
+                        else rf"w_{{{j + 1}}}"
+                    ),
                     calculations=[
                         rf"r_{{{i + 1},{j + 1}}}={products(q[:, i], source)}\approx {number(r[i, j])}"
                     ],
@@ -431,12 +698,37 @@ def _gram_schmidt(a, variant, trace, rtol):
                 "É a construção do complemento ortogonal apresentada na Aula 10; "
                 "em aritmética exata, o novo residual é perpendicular à direção retirada.",
                 rf"p=r_{{{i + 1},{j + 1}}}q_{{{i + 1}}},\qquad w_{{{j + 1}}}\leftarrow w_{{{j + 1}}}-p",
-                calculations=[
-                    rf"p_{{{row + 1}}}=({number(r[i, j])})({number(q[row, i])})\approx {number(projection[row])},\quad w_{{{row + 1}}}^{{novo}}=({number(before[row])})-({number(projection[row])})\approx {number(v[row])}"
-                    for row in range(m)
-                ]
-                if trace.enabled
-                else [],
+                objective=(
+                    "Remover do residual a componente paralela à direção já ortonormalizada "
+                    "para preservar ortogonalidade entre as colunas de Q."
+                ),
+                operation=rf"w_{{{j + 1}}}^{{novo}}=w_{{{j + 1}}}^{{antes}}-r_{{{i + 1},{j + 1}}}q_{{{i + 1}}}",
+                calculations=(
+                    [
+                        rf"p_{{{row + 1}}}=({number(r[i, j])})({number(q[row, i])})\approx {number(projection[row])},\quad w_{{{row + 1}}}^{{novo}}=({number(before[row])})-({number(projection[row])})\approx {number(v[row])}"
+                        for row in range(m)
+                    ]
+                    if trace.enabled
+                    else []
+                ),
+                matrix_order=["antes", "depois", "projecao"],
+                highlights={
+                    "antes": [
+                        _mark(row, 0, "target", "Residual antes") for row in range(m)
+                    ],
+                    "projecao": [
+                        _mark(row, 0, "active", "Projeção removida") for row in range(m)
+                    ],
+                    "depois": [
+                        _mark(row, 0, "updated", "Residual atualizado")
+                        for row in range(m)
+                    ],
+                },
+                legend=[
+                    "Azul: residual antes da subtração.",
+                    "Laranja: projeção calculada na direção q.",
+                    "Verde: residual depois da atualização.",
+                ],
                 antes=before[:, None],
                 projecao=projection[:, None],
                 depois=v[:, None],
@@ -454,12 +746,15 @@ def _gram_schmidt(a, variant, trace, rtol):
             "Ela mede o comprimento da parte independente desta coluna e fica na diagonal de R. "
             "Uma norma nula indicaria dependência linear e impediria esta normalização.",
             rf"r_{{{j + 1},{j + 1}}}=\|w_{{{j + 1}}}\|_2=\sqrt{{\sum_\ell w_\ell^2}}",
-            calculations=[norm_calculation(v, rf"r_{{{j + 1},{j + 1}}}", r[j, j])]
-            if trace.enabled
-            else [],
+            calculations=(
+                [norm_calculation(v, rf"r_{{{j + 1},{j + 1}}}", r[j, j])]
+                if trace.enabled
+                else []
+            ),
             residual=v[:, None],
             R=r,
         )
+        q_before = q.copy()
         q[:, j] = v / r[j, j]
         trace.add(
             f"Normalizar q{j + 1}",
@@ -467,8 +762,24 @@ def _gram_schmidt(a, variant, trace, rtol):
             f"O vetor q{j + 1} passa a ter norma 1. As primeiras {j + 1} colunas de Q "
             "geram o mesmo subespaço das primeiras colunas de A; as demais colunas ainda são espaços reservados.",
             rf"q_{{{j + 1}}}=w_{{{j + 1}}}/r_{{{j + 1},{j + 1}}},\qquad \|q_{{{j + 1}}}\|_2=1",
-            calculations=divisions(v, r[j, j], rf"(q_{{{j + 1}}})") if trace.enabled else [],
-            Q=q,
+            objective="Transformar o residual em um vetor unitário para compor a base ortonormal.",
+            operation=rf"q_{{{j + 1}}}\leftarrow w_{{{j + 1}}}/r_{{{j + 1},{j + 1}}}",
+            calculations=(
+                divisions(v, r[j, j], rf"(q_{{{j + 1}}})") if trace.enabled else []
+            ),
+            matrix_order=["Q_antes", "Q_depois", "R"],
+            highlights={
+                "Q_antes": _col_marks(j, 0, m, "target", "Coluna a atualizar"),
+                "Q_depois": _col_marks(j, 0, m, "updated", "Nova coluna ortonormal"),
+                "R": [_mark(j, j, "pivot", "Norma usada na divisão")],
+            },
+            legend=[
+                "Azul: coluna que ainda será normalizada.",
+                "Vermelho: norma diagonal r_jj usada na divisão.",
+                "Verde: coluna de Q após normalização.",
+            ],
+            Q_antes=q_before,
+            Q_depois=q,
             R=r,
         )
     trace.add(
@@ -502,7 +813,9 @@ def _qr_orthogonal(a, variant, trace, rtol):
             x = r[k:, k].copy()
             norm = np.linalg.norm(x)
             if norm == 0:
-                trace.add(f"Coluna {k + 1} já nula", "Nenhuma reflexão é necessária.", R=r)
+                trace.add(
+                    f"Coluna {k + 1} já nula", "Nenhuma reflexão é necessária.", R=r
+                )
                 continue
             alpha = -np.copysign(norm, x[0])
             trace.add(
@@ -512,12 +825,14 @@ def _qr_orthogonal(a, variant, trace, rtol):
                 "o sinal oposto ao de x₁ para reduzir cancelamento ao construir x−αe₁; "
                 "na fórmula, adotamos sign(0)=1.",
                 r"\alpha=-\operatorname{sign}(x_1)\|x\|_2,\quad Hx=\alpha e_1",
-                calculations=[
-                    norm_calculation(x, r"\|x\|_2", norm),
-                    rf"\alpha=-({number(np.copysign(1.0, x[0]))})({number(norm)})={number(alpha)}",
-                ]
-                if trace.enabled
-                else [],
+                calculations=(
+                    [
+                        norm_calculation(x, r"\|x\|_2", norm),
+                        rf"\alpha=-({number(np.copysign(1.0, x[0]))})({number(norm)})={number(alpha)}",
+                    ]
+                    if trace.enabled
+                    else []
+                ),
                 x=x[:, None],
             )
             v = x.copy()
@@ -535,29 +850,57 @@ def _qr_orthogonal(a, variant, trace, rtol):
                 "H anula os elementos abaixo da diagonal; acumulamos Q←QH e R←HR, "
                 "preservando QR porque QHH R=QR antes da transformação.",
                 r"v=\frac{x-\alpha e_1}{\|x-\alpha e_1\|_2},\quad H=I-2vv^T",
-                calculations=[
-                    rf"w_1=({number(x[0])})-({number(alpha)})={number(unnormalized[0])}",
-                    norm_calculation(unnormalized, r"\|w\|_2", length),
-                ]
-                + divisions(unnormalized, length, "v")
-                + [
-                    rf"H_{{{k + i + 1},{k + j + 1}}}={int(i == j)}-2({number(v[i])})({number(v[j])})\approx {number(h[k + i, k + j])}"
-                    for i in range(len(v))
-                    for j in range(len(v))
-                ]
-                if trace.enabled
-                else [],
+                calculations=(
+                    [
+                        rf"w_1=({number(x[0])})-({number(alpha)})={number(unnormalized[0])}",
+                        norm_calculation(unnormalized, r"\|w\|_2", length),
+                    ]
+                    + divisions(unnormalized, length, "v")
+                    + [
+                        rf"H_{{{k + i + 1},{k + j + 1}}}={int(i == j)}-2({number(v[i])})({number(v[j])})\approx {number(h[k + i, k + j])}"
+                        for i in range(len(v))
+                        for j in range(len(v))
+                    ]
+                    if trace.enabled
+                    else []
+                ),
                 H=h,
                 normal=v[:, None],
             )
+            before_r = r.copy()
+            before_q = q.copy()
             r = record_product(trace, h, r, "R_{novo}", "HR_{antes}")
             q = record_product(trace, q, h, "Q_{novo}", "Q_{antes}H")
             r[k + 1 :, k] = 0
             trace.add(
                 "Guardar os fatores após a reflexão",
                 "Entradas abaixo do pivô, anuladas pela reflexão em aritmética exata, são fixadas em zero para não propagar resíduos de arredondamento.",
+                objective=(
+                    "Aplicar a reflexão no trecho ativo para anular a coluna abaixo do pivô "
+                    "sem perder ortogonalidade."
+                ),
+                operation=rf"R\leftarrow H_{{{k + 1}}}R,\qquad Q\leftarrow QH_{{{k + 1}}}",
+                matrix_order=["R_antes", "R_depois", "Q_antes", "Q_depois", "H"],
+                highlights={
+                    "R_antes": _col_marks(k, k, m, "target", "Trecho a anular"),
+                    "R_depois": _changed_marks(
+                        before_r, r, role="updated", label="Entrada atualizada"
+                    ),
+                    "Q_depois": _changed_marks(
+                        before_q, q, role="updated", label="Q atualizado"
+                    ),
+                },
+                legend=[
+                    "Azul: trecho ativo da coluna em R antes da reflexão.",
+                    "Verde: entradas alteradas após aplicar H.",
+                ],
+                R_antes=before_r,
+                R_depois=r,
+                Q_antes=before_q,
+                Q_depois=q,
                 Q=q,
                 R=r,
+                H=h,
             )
     else:
         for j in range(min(m, n)):
@@ -577,23 +920,54 @@ def _qr_orthogonal(a, variant, trace, rtol):
                     "Como c²+s²=1, G preserva comprimentos. Acumulamos R←GR e Q←QGᵀ; "
                     "GᵀG=I garante que o produto QR continua sendo A.",
                     r"c=a/\sqrt{a^2+b^2},\ s=b/\sqrt{a^2+b^2},\quad G=\begin{bmatrix}c&s\\-s&c\end{bmatrix}",
-                    calculations=[
-                        norm_calculation([upper, lower], "h", norm),
-                        rf"c=\frac{{{number(upper)}}}{{{number(norm)}}}={number(c)},\qquad s=\frac{{{number(lower)}}}{{{number(norm)}}}={number(s)}",
-                        rf"r_{{{i + 1},{j + 1}}}^{{novo}}=-({number(s)})({number(upper)})+({number(c)})({number(lower)})\approx {number(-s * upper + c * lower)}",
-                    ]
-                    if trace.enabled
-                    else [],
+                    calculations=(
+                        [
+                            norm_calculation([upper, lower], "h", norm),
+                            rf"c=\frac{{{number(upper)}}}{{{number(norm)}}}={number(c)},\qquad s=\frac{{{number(lower)}}}{{{number(norm)}}}={number(s)}",
+                            rf"r_{{{i + 1},{j + 1}}}^{{novo}}=-({number(s)})({number(upper)})+({number(c)})({number(lower)})\approx {number(-s * upper + c * lower)}",
+                        ]
+                        if trace.enabled
+                        else []
+                    ),
                     G=g,
                 )
+                before_r = r.copy()
+                before_q = q.copy()
                 r = record_product(trace, g, r, "R_{novo}", "GR_{antes}")
                 q = record_product(trace, q, g.T, "Q_{novo}", "Q_{antes}G^T")
                 r[i, j] = 0
                 trace.add(
                     "Guardar os fatores após a rotação",
                     "A entrada anulada é fixada em zero para remover o resíduo de arredondamento da rotação.",
+                    objective=(
+                        "Atualizar R para zerar uma entrada e acumular a rotação correspondente em Q."
+                    ),
+                    operation=rf"R\leftarrow G_{{{i},{i + 1}}}R,\qquad Q\leftarrow QG_{{{i},{i + 1}}}^T",
+                    matrix_order=["R_antes", "R_depois", "Q_antes", "Q_depois", "G"],
+                    highlights={
+                        "R_antes": [
+                            _mark(i - 1, j, "pivot", "Entrada de referência"),
+                            _mark(i, j, "target", "Entrada a anular"),
+                        ],
+                        "R_depois": _changed_marks(
+                            before_r, r, role="updated", label="Entrada atualizada"
+                        ),
+                        "Q_depois": _changed_marks(
+                            before_q, q, role="updated", label="Q atualizado"
+                        ),
+                    },
+                    legend=[
+                        "Vermelho: entrada de referência para c e s.",
+                        "Azul: entrada anulada pela rotação.",
+                        "Verde: entradas alteradas em Q e R.",
+                    ],
+                    R_antes=before_r,
+                    R_depois=r,
+                    Q_antes=before_q,
+                    Q_depois=q,
                     Q=q,
                     R=r,
+                    G=g,
                 )
     trace.add(
         "Concluir QR e conferir a base",
@@ -631,17 +1005,24 @@ def _svd(a, trace, rtol):
         "os escalados. A escala global não altera o condicionamento. "
         "Formar a gramiana pode perder precisão nas direções pequenas.",
         r"B=A/s,\qquad G_s=B^TB=G/s^2",
-        calculations=[
-            rf"B_{{{i + 1},{j + 1}}}=\frac{{{number(a[i, j])}}}{{{number(scale)}}}={number(b[i, j])}"
-            for i in range(m)
-            for j in range(n)
-        ]
-        if trace.enabled
-        else [],
+        calculations=(
+            [
+                rf"B_{{{i + 1},{j + 1}}}=\frac{{{number(a[i, j])}}}{{{number(scale)}}}={number(b[i, j])}"
+                for i in range(m)
+                for j in range(n)
+            ]
+            if trace.enabled
+            else []
+        ),
         B=b,
     )
     gram = record_product(
-        trace, b.T, b, "G_s", "B^TB", "A gramiana usa produtos internos entre as colunas de B."
+        trace,
+        b.T,
+        b,
+        "G_s",
+        "B^TB",
+        "A gramiana usa produtos internos entre as colunas de B.",
     )
     if trace.enabled:
         trace.add(
@@ -675,7 +1056,8 @@ def _svd(a, trace, rtol):
                 coeficientes=np.array(coefficients)[None, :],
             )
         polynomial = "+".join(
-            rf"({number(value)})t^{{{n - index}}}" for index, value in enumerate(coefficients)
+            rf"({number(value)})t^{{{n - index}}}"
+            for index, value in enumerate(coefficients)
         )
         trace.add(
             "Equação que determina os autovalores",
@@ -733,7 +1115,12 @@ def _svd(a, trace, rtol):
     )
     norms = np.linalg.norm(transformed, axis=0)
     refined = norms**2
-    floor = 10 * np.finfo(float).eps * max(m, n) * (float(norms.max()) if norms.size else 0.0)
+    floor = (
+        10
+        * np.finfo(float).eps
+        * max(m, n)
+        * (float(norms.max()) if norms.size else 0.0)
+    )
     order = np.argsort(-norms, kind="stable")[:k]
     norms, refined, raw = norms[order], refined[order], eigenvalues[order]
     v, transformed = eigenvectors[:, order], transformed[:, order]
@@ -748,13 +1135,15 @@ def _svd(a, trace, rtol):
             "Esta reavaliação não corrige um autovetor impreciso. "
             f"O valor reavaliado é {refined[i]:.10g}; σ=s√μ={values[i]:.10g}.",
             r"\mu_i=\|Bv_i\|_2^2,\quad \lambda_i=s^2\mu_i,\quad \sigma_i=\sqrt{\lambda_i}=s\sqrt{\mu_i}",
-            calculations=[
-                rf"\mu_{{{i + 1}}}={'+'.join(f'({number(x)})^2' for x in transformed[:, i])}\approx {number(refined[i])}",
-                rf"\lambda_{{{i + 1}}}=({number(scale)})^2({number(refined[i])})\approx {number(scale**2 * refined[i])}",
-                rf"\sigma_{{{i + 1}}}=({number(scale)})\sqrt{{{number(refined[i])}}}\approx {number(values[i])}",
-            ]
-            if trace.enabled
-            else [],
+            calculations=(
+                [
+                    rf"\mu_{{{i + 1}}}={'+'.join(f'({number(x)})^2' for x in transformed[:, i])}\approx {number(refined[i])}",
+                    rf"\lambda_{{{i + 1}}}=({number(scale)})^2({number(refined[i])})\approx {number(scale**2 * refined[i])}",
+                    rf"\sigma_{{{i + 1}}}=({number(scale)})\sqrt{{{number(refined[i])}}}\approx {number(values[i])}",
+                ]
+                if trace.enabled
+                else []
+            ),
             y=(scale * transformed[:, i])[:, None],
         )
         if norms[i] > floor:
@@ -765,9 +1154,11 @@ def _svd(a, trace, rtol):
                 "Computamos a divisão equivalente na escala protegida: u=(Bv)/√μ. "
                 "Isso preserva a norma unitária e evita trabalhar com números muito grandes.",
                 r"u_i=Av_i/\sigma_i=(Bv_i)/\sqrt{\mu_i}",
-                calculations=divisions(scale * transformed[:, i], values[i], "u")
-                if trace.enabled
-                else [],
+                calculations=(
+                    divisions(scale * transformed[:, i], values[i], "u")
+                    if trace.enabled
+                    else []
+                ),
                 y=(scale * transformed[:, i])[:, None],
                 direcao_unitaria=u[:, i, None],
             )
@@ -805,10 +1196,12 @@ def _svd(a, trace, rtol):
                         f"A norma de Bv está dentro do limiar de máquina {floor:.4g}. Não dividimos por σ=0. "
                         "Normalizamos o candidato ortogonal; esta coluna não contribui à reconstrução porque seu valor singular é zero.",
                         r"\sigma_i=0,\qquad u_i=w/\|w\|_2",
-                        calculations=[norm_calculation(candidate, r"\|w\|_2", length)]
-                        + divisions(candidate, length, "u")
-                        if trace.enabled
-                        else [],
+                        calculations=(
+                            [norm_calculation(candidate, r"\|w\|_2", length)]
+                            + divisions(candidate, length, "u")
+                            if trace.enabled
+                            else []
+                        ),
                         U=u,
                     )
                     break
@@ -850,16 +1243,45 @@ def _svd(a, trace, rtol):
                 "Cada entrada do termo é σᵢ vezes uma componente de uᵢ vezes uma componente de vᵢ. "
                 "Depois somamos esse termo à reconstrução acumulada.",
                 rf"A_{{{index + 1}}}=A_{{{index}}}+\sigma_{{{index + 1}}}u_{{{index + 1}}}v_{{{index + 1}}}^T",
+                objective=(
+                    "Mostrar como a matriz é reconstruída de modo cumulativo pela soma de termos de posto 1."
+                ),
+                operation=rf"A_{{parcial}}\leftarrow A_{{parcial}}+\sigma_{{{index + 1}}}u_{{{index + 1}}}v_{{{index + 1}}}^T",
                 calculations=[
                     rf"T_{{{row + 1},{col + 1}}}=({number(values[index])})({number(u[row, index])})({number(v[col, index])})\approx {number(term[row, col])},\quad (A_{{{index + 1}}})_{{{row + 1},{col + 1}}}=({number(before[row, col])})+({number(term[row, col])})\approx {number(partial[row, col])}"
                     for row in range(m)
                     for col in range(n)
                 ],
+                matrix_order=["A_antes", "A_depois", "termo"],
+                highlights={
+                    "A_depois": _changed_marks(
+                        before, partial, role="updated", label="Entrada atualizada"
+                    ),
+                    "termo": _changed_marks(
+                        np.zeros_like(term),
+                        term,
+                        role="active",
+                        label="Termo adicionado",
+                    ),
+                },
+                legend=[
+                    "Laranja: termo singular que está sendo somado.",
+                    "Verde: entradas atualizadas da reconstrução acumulada.",
+                ],
+                A_antes=before,
+                A_depois=partial,
                 termo=term,
                 soma_parcial=partial,
             )
-    ortho = max(np.linalg.norm(u.T @ u - np.eye(k)), np.linalg.norm(v.T @ v - np.eye(k)))
-    return {"U": u, "Sigma": sigma, "Vt": v.T}, r"A=U\Sigma V^T", u @ sigma @ v.T, float(ortho)
+    ortho = max(
+        np.linalg.norm(u.T @ u - np.eye(k)), np.linalg.norm(v.T @ v - np.eye(k))
+    )
+    return (
+        {"U": u, "Sigma": sigma, "Vt": v.T},
+        r"A=U\Sigma V^T",
+        u @ sigma @ v.T,
+        float(ortho),
+    )
 
 
 def decompose(value, method, rtol=DEFAULT_RTOL, record_steps=True):
@@ -887,7 +1309,9 @@ def decompose(value, method, rtol=DEFAULT_RTOL, record_steps=True):
     if method == "svd":
         singular_values = np.diag(factors["Sigma"])
         eig_condition = (
-            singular_values[0] / singular_values[-1] if singular_values[-1] > 0 else np.inf
+            singular_values[0] / singular_values[-1]
+            if singular_values[-1] > 0
+            else np.inf
         )
         if not np.isfinite(eig_condition) or eig_condition > 1e7:
             warnings.append(
@@ -923,7 +1347,9 @@ def decompose(value, method, rtol=DEFAULT_RTOL, record_steps=True):
         elif method.startswith("qr_"):
             record_product(trace, factors["Q"], factors["R"], r"\widehat A", "QR")
         else:
-            checked = record_product(trace, factors["U"], factors["Sigma"], "T", r"U\Sigma")
+            checked = record_product(
+                trace, factors["U"], factors["Sigma"], "T", r"U\Sigma"
+            )
             record_product(trace, checked, factors["Vt"], r"\widehat A", "TV^T")
         if method.startswith("qr_"):
             record_product(
@@ -942,18 +1368,22 @@ def decompose(value, method, rtol=DEFAULT_RTOL, record_steps=True):
         f"Reconstruímos a matriz a partir dos fatores. Erro relativo de Frobenius: {error:.10g}. "
         "Em ponto flutuante, esperamos um erro pequeno, e não igualdade decimal exata.",
         r"\varepsilon=\frac{\|A-\widehat A\|_F}{\|A\|_F}",
-        calculations=[
-            rf"\Delta_{{{i + 1},{j + 1}}}=({number(a[i, j])})-({number(rebuilt[i, j])})\approx {number(a[i, j] - rebuilt[i, j])}"
-            for i in range(a.shape[0])
-            for j in range(a.shape[1])
-        ]
-        + [
-            norm_calculation((a - rebuilt).ravel(), r"\|\Delta\|_F", stable_norm(a - rebuilt)),
-            norm_calculation(a.ravel(), r"\|A\|_F", stable_norm(a)),
-            rf"\varepsilon\approx {number(error)}",
-        ]
-        if trace.enabled
-        else [],
+        calculations=(
+            [
+                rf"\Delta_{{{i + 1},{j + 1}}}=({number(a[i, j])})-({number(rebuilt[i, j])})\approx {number(a[i, j] - rebuilt[i, j])}"
+                for i in range(a.shape[0])
+                for j in range(a.shape[1])
+            ]
+            + [
+                norm_calculation(
+                    (a - rebuilt).ravel(), r"\|\Delta\|_F", stable_norm(a - rebuilt)
+                ),
+                norm_calculation(a.ravel(), r"\|A\|_F", stable_norm(a)),
+                rf"\varepsilon\approx {number(error)}",
+            ]
+            if trace.enabled
+            else []
+        ),
         A=a,
         reconstruida=rebuilt,
     )

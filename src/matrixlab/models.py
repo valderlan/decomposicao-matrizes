@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 
@@ -12,7 +13,12 @@ class Step:
     title: str
     explanation: str
     formula: str = ""
+    objective: str = ""
+    operation: str = ""
     matrices: dict[str, np.ndarray] = field(default_factory=dict)
+    matrix_order: list[str] = field(default_factory=list)
+    highlights: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
+    legend: list[str] = field(default_factory=list)
     calculations: list[str] = field(default_factory=list)
 
     def to_dict(self):
@@ -20,7 +26,12 @@ class Step:
             "title": self.title,
             "explanation": self.explanation,
             "formula": self.formula,
+            "objective": self.objective,
+            "operation": self.operation,
             "calculations": self.calculations,
+            "matrix_order": self.matrix_order,
+            "highlights": self.highlights,
+            "legend": self.legend,
             "matrices": {name: value.tolist() for name, value in self.matrices.items()},
         }
 
@@ -30,14 +41,35 @@ class Trace:
     enabled: bool = True
     steps: list[Step] = field(default_factory=list)
 
-    def add(self, title, explanation, formula="", *, calculations=None, **matrices):
+    def add(
+        self,
+        title,
+        explanation,
+        formula="",
+        *,
+        objective="",
+        operation="",
+        calculations=None,
+        matrix_order=None,
+        highlights=None,
+        legend=None,
+        **matrices,
+    ):
         if self.enabled:
             self.steps.append(
                 Step(
                     title,
                     explanation,
                     formula,
+                    objective,
+                    operation,
                     {k: np.array(v, copy=True) for k, v in matrices.items()},
+                    list(matrix_order or []),
+                    {
+                        name: [dict(item) for item in entries]
+                        for name, entries in dict(highlights or {}).items()
+                    },
+                    list(legend or []),
                     list(calculations or []),
                 )
             )

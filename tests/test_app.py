@@ -21,11 +21,11 @@ def test_dashboard_complete_flow_and_input_invalidation():
     result = analyze(app())
     assert len(result.dataframe) >= 1
     assert result.selectbox(key="method_choice").options
-    result.selectbox(key="method_choice").set_value("cholesky").run()
+    result.selectbox(key="method_choice").set_value("lu_doolittle").run()
     result.checkbox[0].check().run()
     result.button[1].click().run()
     assert not result.exception
-    assert result.session_state["decomposition_result"].method == "cholesky"
+    assert result.session_state["decomposition_result"].method == "lu_doolittle"
     assert result.session_state["solution_result"] is not None
     assert result.success
     result.text_area[0].set_value("1 2\n2 4").run()
@@ -91,14 +91,17 @@ def test_button_navigation_has_boundaries_and_separate_solution_state():
     result.checkbox[0].check().run()
     result.button[1].click().run()
     assert not result.exception
+    decomposition_id = id(result.session_state["decomposition_result"])
     assert result.button(key="step_index_previous").disabled
     assert result.button(key="step_index_first").disabled
     assert all("passo" not in slider.label.lower() for slider in result.slider)
     result.button(key="step_index_next").click().run()
     assert not result.exception
+    assert id(result.session_state["decomposition_result"]) == decomposition_id
     assert result.session_state["step_index"] == 2
     assert result.session_state["solution_step_index"] == 1
     result.button(key="solution_step_index_next").click().run()
+    assert id(result.session_state["decomposition_result"]) == decomposition_id
     assert result.session_state["solution_step_index"] == 2
     assert result.session_state["step_index"] == 2
     result.button(key="step_index_last").click().run()
@@ -170,7 +173,9 @@ def test_integer_example_and_theory_use_separate_latex_blocks():
     assert set(result.session_state["decomposition_result"].factors) == {"L", "U"}
     guide = result.tabs[4]
     assert any(r"2a+c=5" in item.value for item in guide.latex)
-    assert any(r"\begin{bmatrix}5\\11\end{bmatrix}" in item.value for item in guide.latex)
+    assert any(
+        r"\begin{bmatrix}5\\11\end{bmatrix}" in item.value for item in guide.latex
+    )
     assert any("caderno" in item.value for item in guide.markdown)
     assert all("$$" not in item.value for item in guide.markdown)
     assert any("| Propriedade |" in item.value for item in guide.markdown)
@@ -180,13 +185,17 @@ def test_integer_example_and_theory_use_separate_latex_blocks():
 
 def test_svd_dashboard_shows_spectral_stages_and_numeric_calculations():
     result = app()
-    result.selectbox(key="example").set_value("SVD • autovetores e fatores simples (2 × 2)").run()
+    result.selectbox(key="example").set_value(
+        "SVD • autovetores e fatores simples (2 × 2)"
+    ).run()
     result = analyze(result)
     result.selectbox(key="method_choice").set_value("svd").run()
     result.checkbox[0].check().run()
     result.button[1].click().run()
     assert not result.exception
-    assert "autovalores e autovetores" in result.selectbox(key="method_choice").options[-1]
+    assert (
+        "autovalores e autovetores" in result.selectbox(key="method_choice").options[-1]
+    )
     decomposition = result.session_state["decomposition_result"]
     assert any("autovalores_escalados" in step.matrices for step in decomposition.steps)
     result.button(key="step_index_next").click().run()

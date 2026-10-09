@@ -33,7 +33,7 @@ O teste positivo definido pelo diagnóstico usa autovalores; Cholesky verifica p
 3. Mostrar uma linha para cada variante, com disponibilidade e justificativa. Os métodos bloqueados continuam visíveis na tabela.
 4. Selecionar um método disponível e executar. Se a execução falhar numericamente, apresentar a razão.
 5. Mostrar fatores finais e identidade correspondente à variante: L/U e A=LU sem pivotamento; L/U/P e PA=LU no parcial; L/U/P/C e PAC=LU no total. Uma permutação pode ser identidade quando o método não precisar efetuar trocas.
-6. Navegar pelos passos reais com números, fórmulas e matrizes intermediárias usando botões Primeiro, Anterior, Próximo e Último. Os controles da decomposição e da solução são independentes; uma nova execução reinicia ambos no primeiro passo.
+6. Navegar pelos passos reais com números, fórmulas e matrizes intermediárias usando botões Primeiro, Anterior, Próximo e Último. Cada operação mostra objetivo, operação aplicada, estados Antes/Depois (com cópias independentes) e legenda de destaques para pivô, entrada-alvo, trecho ativo e atualizações. Os controles da decomposição e da solução são independentes; uma nova execução reinicia ambos no primeiro passo.
 7. Verificar a reconstrução. Para Q/U/V, verificar ortogonalidade. Advertir sobre perda de precisão.
 8. Com b, apresentar as etapas da solução e o resíduo; diferenciar fatoração de resolução. Se o resolvedor falhar, conservar os fatores e explicar a restrição.
 9. Exportar um JSON válido contendo todos os passos, sem NaN ou Infinity não padronizados.
@@ -95,4 +95,4 @@ Não publicar o painel na internet sem configurar limites de recursos e acesso. 
 
 ## Contas explícitas nos passos
 
-Step.calculations guarda expressões LaTeX com os números substituídos nas fórmulas; Trace copia a lista e as matrizes. A interface abre a seção Contas deste passo e a exportação JSON preserva as expressões. arithmetic.py formata números, somas de produtos, normas, divisões e entradas de produtos matriciais. Todos os métodos mostram a reconstrução e os resíduos com contas por componente. Householder/Givens mostram também os produtos usados para atualizar Q e R.
+Step.calculations guarda expressões LaTeX com os números substituídos nas fórmulas; Trace copia a lista e as matrizes. A interface abre a seção Contas deste passo e a exportação JSON preserva as expressões. Além das contas, cada passo pode registrar objetivo, operação, ordem de estados e destaques por célula para renderizar Antes/Depois com legenda. arithmetic.py formata números, somas de produtos, normas, divisões e entradas de produtos matriciais. Todos os métodos mostram a reconstrução e os resíduos com contas por componente. Householder/Givens mostram também os produtos usados para atualizar Q e R.

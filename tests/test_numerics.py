@@ -38,7 +38,9 @@ def test_spd_reconstruction_structure_and_solution(method):
         else:
             np.testing.assert_allclose(np.diag(f["L"]), 1)
     if method.startswith("qr_"):
-        np.testing.assert_allclose(f["Q"].T @ f["Q"], np.eye(f["Q"].shape[1]), atol=1e-10)
+        np.testing.assert_allclose(
+            f["Q"].T @ f["Q"], np.eye(f["Q"].shape[1]), atol=1e-10
+        )
         np.testing.assert_allclose(f["R"], np.triu(f["R"]), atol=1e-10)
     x = np.array([1.0, 2.0, 3.0])
     solution = solve(SPD, SPD @ x, result)
@@ -63,7 +65,9 @@ def test_svd_general(shape, rank_deficient):
     result = decompose(a, "svd")
     f = result.factors
     np.testing.assert_allclose(rebuild(result), a, rtol=1e-10, atol=1e-10)
-    np.testing.assert_allclose(np.diag(f["Sigma"]), np.linalg.svd(a, compute_uv=False), atol=1e-10)
+    np.testing.assert_allclose(
+        np.diag(f["Sigma"]), np.linalg.svd(a, compute_uv=False), atol=1e-10
+    )
     k = min(shape)
     np.testing.assert_allclose(f["U"].T @ f["U"], np.eye(k), atol=1e-10)
     np.testing.assert_allclose(f["Vt"] @ f["Vt"].T, np.eye(k), atol=1e-10)
@@ -103,7 +107,9 @@ def test_least_squares(method):
     b = np.array([1.0, 2.0, 2.0, 4.0])
     result = decompose(a, method)
     actual = solve(a, b, result)
-    np.testing.assert_allclose(actual.x, np.linalg.lstsq(a, b, rcond=None)[0], atol=1e-10)
+    np.testing.assert_allclose(
+        actual.x, np.linalg.lstsq(a, b, rcond=None)[0], atol=1e-10
+    )
     assert actual.residual_norm > 0
 
 
@@ -120,7 +126,9 @@ def test_lu_pivoting_and_variable_permutation():
     assert not np.array_equal(decompose(a, "lu_total").factors["C"], np.eye(3))
 
 
-@pytest.mark.parametrize("method", ["lu_doolittle", "lu_crout", "lu_partial", "lu_total"])
+@pytest.mark.parametrize(
+    "method", ["lu_doolittle", "lu_crout", "lu_partial", "lu_total"]
+)
 def test_random_lu(method):
     rng = np.random.default_rng(17)
     for n in [2, 4, 8, 10]:
@@ -178,7 +186,18 @@ def test_parser(text):
 
 @pytest.mark.parametrize(
     "text",
-    ["", "1 2\n3", "nan 1", "inf", "1/0", "__import__('os')", "1e101", "1e-101", "[1,2,3]", "1+2j"],
+    [
+        "",
+        "1 2\n3",
+        "nan 1",
+        "inf",
+        "1/0",
+        "__import__('os')",
+        "1e101",
+        "1e-101",
+        "[1,2,3]",
+        "1+2j",
+    ],
 )
 def test_invalid_input(text):
     with pytest.raises(ValueError):
@@ -186,7 +205,9 @@ def test_invalid_input(text):
 
 
 @pytest.mark.parametrize("scale", [1e-80, 1.0, 1e80])
-@pytest.mark.parametrize("method", ["lu_partial", "cholesky", "ldlt", "qr_householder", "svd"])
+@pytest.mark.parametrize(
+    "method", ["lu_partial", "cholesky", "ldlt", "qr_householder", "svd"]
+)
 def test_scale_invariance(scale, method):
     a = SPD * scale
     result = decompose(a, method)
@@ -200,6 +221,30 @@ def test_trace_states_do_not_alias():
     initial = result.steps[0].matrices["U"].copy()
     result.factors["U"][:] = 0
     np.testing.assert_array_equal(result.steps[0].matrices["U"], initial)
+
+
+def test_lu_elimination_records_before_after_objective_and_operation():
+    a = np.array([[2.0, 1.0, 1.0], [4.0, 5.0, 3.0], [2.0, 7.0, 7.0]])
+    result = decompose(a, "lu_doolittle")
+    elimination = next(step for step in result.steps if "E_inversa" in step.matrices)
+    assert elimination.objective
+    assert elimination.operation
+    assert "U_antes" in elimination.matrices
+    assert "U_depois" in elimination.matrices
+    assert "L_antes" in elimination.matrices
+    assert "L_depois" in elimination.matrices
+    np.testing.assert_allclose(
+        elimination.matrices["E"] @ elimination.matrices["U_antes"],
+        elimination.matrices["U_depois"],
+        atol=1e-12,
+    )
+    np.testing.assert_allclose(
+        elimination.matrices["U"], elimination.matrices["U_depois"], atol=1e-12
+    )
+    before_l = elimination.matrices["L_antes"]
+    after_l = elimination.matrices["L_depois"]
+    changed = np.argwhere(~np.isclose(before_l, after_l))
+    assert changed.shape[0] == 1
 
 
 def test_pseudoinverse_moore_penrose_and_inconsistent_system():
@@ -261,7 +306,9 @@ def test_gram_schmidt_matches_aula10_worked_example(method):
     assert projection_steps
     for step in projection_steps:
         np.testing.assert_allclose(
-            step.matrices["antes"] - step.matrices["projecao"], step.matrices["depois"], atol=1e-12
+            step.matrices["antes"] - step.matrices["projecao"],
+            step.matrices["depois"],
+            atol=1e-12,
         )
 
 
@@ -270,7 +317,9 @@ def test_svd_explanatory_states_obey_aula18_identities(shape):
     a = np.random.default_rng(14).normal(size=shape)
     result = decompose(a, "svd")
     relation = next(s for s in result.steps if "YtY" in s.matrices)
-    np.testing.assert_allclose(relation.matrices["Y"], relation.matrices["U_Sigma"], atol=1e-12)
+    np.testing.assert_allclose(
+        relation.matrices["Y"], relation.matrices["U_Sigma"], atol=1e-12
+    )
     np.testing.assert_allclose(
         relation.matrices["YtY"], relation.matrices["Sigma_quadrado"], atol=1e-11
     )
@@ -297,7 +346,9 @@ def test_lu_handout_factors_elementary_matrices_and_solution(method):
         np.testing.assert_allclose(m["E"] @ m["U_antes"], m["U"], atol=1e-12)
         np.testing.assert_allclose(m["E"] @ m["E_inversa"], np.eye(3), atol=1e-12)
     product = next(s for s in result.steps if "produto_das_inversas" in s.matrices)
-    np.testing.assert_allclose(product.matrices["produto_das_inversas"], product.matrices["L"])
+    np.testing.assert_allclose(
+        product.matrices["produto_das_inversas"], product.matrices["L"]
+    )
     solution = solve(a, np.array([1.0, -1.0, -7.0]), result)
     np.testing.assert_allclose(solution.x, [2.0, 1.0, -1.0])
 
@@ -362,10 +413,16 @@ def test_lu_identity_and_solution_trace_match_the_selected_variant(
             assert "x=Cz" not in step.formula
             assert "x=Cz" not in step.explanation
     assert any(s.title == "Permutar b" for s in solution.steps) == ("P" in keys)
-    assert any(s.title == "Recuperar ordem das variáveis" for s in solution.steps) == ("C" in keys)
+    assert any(s.title == "Recuperar ordem das variáveis" for s in solution.steps) == (
+        "C" in keys
+    )
     if method == "lu_doolittle":
-        np.testing.assert_array_equal(result.factors["L"], [[1, 0, 0], [2, 1, 0], [1, 2, 1]])
-        np.testing.assert_array_equal(result.factors["U"], [[2, 1, 1], [0, 3, 1], [0, 0, 4]])
+        np.testing.assert_array_equal(
+            result.factors["L"], [[1, 0, 0], [2, 1, 0], [1, 2, 1]]
+        )
+        np.testing.assert_array_equal(
+            result.factors["U"], [[2, 1, 1], [0, 3, 1], [0, 0, 4]]
+        )
 
 
 @pytest.mark.parametrize(
@@ -388,7 +445,9 @@ def test_spectral_svd_uses_and_verifies_gram_eigenpairs(a, monkeypatch):
     result = decompose(a, "svd")
     s = float(np.max(np.abs(a))) or 1.0
     gram = (a / s).T @ (a / s)
-    eigen_step = next(step for step in result.steps if "autovalores_escalados" in step.matrices)
+    eigen_step = next(
+        step for step in result.steps if "autovalores_escalados" in step.matrices
+    )
     e = eigen_step.matrices["autovalores_escalados"].ravel()
     v = eigen_step.matrices["autovetores"]
     np.testing.assert_allclose(gram @ v, v * e, atol=1e-12)
@@ -403,9 +462,13 @@ def test_spectral_polynomial_and_worked_non_diagonal_example():
     a = np.array([[2.0, 1.0], [1.0, 2.0]])
     result = decompose(a, "svd")
     polynomial = next(
-        step for step in result.steps if step.title == "Equação que determina os autovalores"
+        step
+        for step in result.steps
+        if step.title == "Equação que determina os autovalores"
     )
-    np.testing.assert_allclose(polynomial.matrices["coeficientes"], [[1.0, -2.5, 0.5625]])
+    np.testing.assert_allclose(
+        polynomial.matrices["coeficientes"], [[1.0, -2.5, 0.5625]]
+    )
     np.testing.assert_allclose(np.diag(result.factors["Sigma"]), [3.0, 1.0], atol=1e-12)
     np.testing.assert_allclose(solve(a, [4.0, 5.0], result).x, [1.0, 2.0], atol=1e-12)
 
@@ -422,9 +485,13 @@ def test_spectral_svd_explains_precision_limit_for_rotated_ill_conditioning():
 def test_qr_intermediate_products_preserve_original_matrix(method):
     a = np.array([[1.0, 2.0], [3.0, 1.0], [2.0, 4.0]])
     result = decompose(a, method)
-    stored = [step for step in result.steps if step.title.startswith("Guardar os fatores")]
+    stored = [
+        step for step in result.steps if step.title.startswith("Guardar os fatores")
+    ]
     assert stored
     for step in stored:
-        np.testing.assert_allclose(step.matrices["Q"] @ step.matrices["R"], a, atol=1e-12)
+        np.testing.assert_allclose(
+            step.matrices["Q"] @ step.matrices["R"], a, atol=1e-12
+        )
         q = step.matrices["Q"]
         np.testing.assert_allclose(q.T @ q, np.eye(3), atol=1e-12)
