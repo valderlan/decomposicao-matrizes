@@ -294,7 +294,9 @@ def show_determinant_walkthrough(a, decomposition, digits, rtol):
         pivot_row = k + int(np.argmax(np.abs(u[k:, k])))
         pivot_candidate = float(u[pivot_row, k])
 
-        with st.expander(f"Passo {step} · escolher pivô na coluna {k + 1}", expanded=step <= 2):
+        with st.expander(
+            f"Passo {step} · escolher pivô na coluna {k + 1}", expanded=step <= 2
+        ):
             st.write(
                 f"No bloco ativo, escolhemos o pivô em ({pivot_row + 1}, {k + 1}) = {pivot_candidate:.10g}."
             )
@@ -394,9 +396,15 @@ def show_determinant_walkthrough(a, decomposition, digits, rtol):
     )
 
     st.markdown("**Propriedades do determinante e impacto nas decomposições**")
-    st.write("- det(A)=0 implica matriz singular: não há inversa e não há solução única garantida para Ax=b.")
-    st.write("- det(A)≠0 (com A quadrada) implica invertibilidade e solução única para Ax=b.")
-    st.write("- Em LU com pivotamento, cada troca de linha muda o sinal do determinante.")
+    st.write(
+        "- det(A)=0 implica matriz singular: não há inversa e não há solução única garantida para Ax=b."
+    )
+    st.write(
+        "- det(A)≠0 (com A quadrada) implica invertibilidade e solução única para Ax=b."
+    )
+    st.write(
+        "- Em LU com pivotamento, cada troca de linha muda o sinal do determinante."
+    )
     st.write(
         "- Em Cholesky/LDLᵀ desta aplicação, a hipótese é positiva definida: isso força det(A)>0 "
         "(e, teoricamente, todos os menores principais líderes positivos)."
@@ -617,15 +625,25 @@ with st.expander("Determinante: cálculo e relação com decomposições"):
         st.latex(r"PAC=LU\Rightarrow\det(A)=\det(P)\det(C)\det(L)\det(U)")
         st.latex(r"A=LL^T\Rightarrow\det(A)=\det(L)^2>0")
         st.latex(r"A=LDL^T\Rightarrow\det(A)=\det(D)\ \text{(L unitária)}")
-        st.latex(r"A=QR\Rightarrow\det(A)=\det(Q)\det(R),\ |\det(Q)|=1\ \text{(A quadrada)}")
-        st.latex(r"A=U\Sigma V^T\Rightarrow|\det(A)|=\prod_i\sigma_i\ \text{(A quadrada)}")
+        st.latex(
+            r"A=QR\Rightarrow\det(A)=\det(Q)\det(R),\ |\det(Q)|=1\ \text{(A quadrada)}"
+        )
+        st.latex(
+            r"A=U\Sigma V^T\Rightarrow|\det(A)|=\prod_i\sigma_i\ \text{(A quadrada)}"
+        )
 
         st.markdown("**Propriedades importantes**")
         st.write("- det(A)=0 implica matriz singular e não invertível.")
         st.write("- det(A)≠0 implica matriz invertível e solução única para Ax=b.")
-        st.write("- Cada troca de linha/coluna em pivotamento muda o sinal do determinante.")
-        st.write("- Em Cholesky de matriz positiva definida, o determinante é sempre positivo.")
-        st.write("- Em SVD quadrada, valores singulares pequenos tornam |det(A)| pequeno.")
+        st.write(
+            "- Cada troca de linha/coluna em pivotamento muda o sinal do determinante."
+        )
+        st.write(
+            "- Em Cholesky de matriz positiva definida, o determinante é sempre positivo."
+        )
+        st.write(
+            "- Em SVD quadrada, valores singulares pequenos tornam |det(A)| pequeno."
+        )
 table = pd.DataFrame(
     [
         {

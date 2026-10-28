@@ -17,7 +17,9 @@ def inspect_matrix(value, rtol=DEFAULT_RTOL):
     full_rank = rank == min(m, n)
     condition = float(singular[0] / singular[-1]) if full_rank else float("inf")
     symmetric = square and np.max(np.abs(a - a.T)) <= threshold(a, rtol)
-    eigenvalues = np.linalg.eigvalsh((a + a.T) / (2 * scale)) * scale if symmetric else None
+    eigenvalues = (
+        np.linalg.eigvalsh((a + a.T) / (2 * scale)) * scale if symmetric else None
+    )
     determinant = float(np.linalg.det(a)) if square else None
     sign_det, logabs_det = np.linalg.slogdet(a) if square else (None, None)
     properties = {
@@ -45,21 +47,27 @@ def inspect_matrix(value, rtol=DEFAULT_RTOL):
             reason = (
                 "Aplicável a matrizes reais, inclusive retangulares e singulares."
                 if method == "svd"
-                else "Reflexões/rotações permitem QR mesmo com colunas dependentes."
-                if method in {"qr_householder", "qr_givens"}
-                else "As colunas podem ser ortonormalizadas sob a tolerância escolhida."
-                if method.startswith("qr_")
-                else "Simetria e pivôs positivos foram verificados."
-                if method in {"cholesky", "ldlt"}
-                else "A eliminação e as condições dos pivôs foram verificadas."
+                else (
+                    "Reflexões/rotações permitem QR mesmo com colunas dependentes."
+                    if method in {"qr_householder", "qr_givens"}
+                    else (
+                        "As colunas podem ser ortonormalizadas sob a tolerância escolhida."
+                        if method.startswith("qr_")
+                        else (
+                            "Simetria e pivôs positivos foram verificados."
+                            if method in {"cholesky", "ldlt"}
+                            else "A eliminação e as condições dos pivôs foram verificadas."
+                        )
+                    )
+                )
             )
             if m == n and rank < n and method.startswith("lu_"):
-                reason += (
-                    " Fatoração possível, mas há posto deficiente e não há solução única garantida."
-                )
+                reason += " Fatoração possível, mas há posto deficiente e não há solução única garantida."
             if result.warnings:
                 reason += " " + " ".join(result.warnings)
-            availability.append({"id": method, "name": name, "available": True, "reason": reason})
+            availability.append(
+                {"id": method, "name": name, "available": True, "reason": reason}
+            )
         except MethodError as exc:
             availability.append(
                 {"id": method, "name": name, "available": False, "reason": str(exc)}

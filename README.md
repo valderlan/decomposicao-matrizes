@@ -17,7 +17,7 @@ Abra **http://localhost:8501**. No Windows, execute os mesmos comandos pelo Powe
 ## O que está implementado
 
 1. Entrada por texto (espaços, vírgulas, frações ou JSON) ou grade editável; matrizes reais de 1 × 1 até 10 × 10.
-2. Diagnóstico de dimensões, simetria, posto numérico, positividade, normas e condicionamento.
+2. Diagnóstico de dimensões, simetria, posto numérico, positividade, normas, condicionamento e determinante (quando A é quadrada), incluindo sinal e log|det(A)| para leitura numérica estável.
 3. Tabela com todas as variantes, disponibilidade e motivo de falha. O diagnóstico usa a mesma implementação que executa a fatoração.
 4. LU Doolittle, Crout por reescalonamento equivalente, pivotamento parcial e total.
 5. Cholesky LLᵀ e versão sem raízes LDLᵀ, ambas restritas a matrizes simétricas positivas definidas.
@@ -32,6 +32,7 @@ Abra **http://localhost:8501**. No Windows, execute os mesmos comandos pelo Powe
 14. Identidades, fatores e solução adequados à variante: sem pivotamento, A=LU e apenas L/U; parcial, PA=LU e L/U/P; total, PAC=LU e L/U/P/C. A exportação JSON segue a mesma seleção de fatores. Blocos matemáticos do guia são renderizados com `st.latex`.
 15. Seção **Contas deste passo**: substituição dos valores em multiplicadores, correções de Cholesky/LDLᵀ, projeções e normas de QR, refletores/rotações, gramiana, polinômio característico, autovetores, valores singulares e normalização. Produtos dos fatores, sistemas triangulares e resíduos também mostram contas por componente. O JSON inclui essas expressões no campo `calculations` de cada passo, e também exporta os destaques de células, a operação registrada e a ordem de exibição dos estados.
 16. Legenda visual por passo: pivô, entrada-alvo, trecho ativo e entradas atualizadas são destacados com cores consistentes na matriz. Isso facilita acompanhar por que cada operação é necessária e qual parte do fator foi alterada.
+17. Seção dedicada ao determinante em **Fatores finais**: cálculo direto de det(A) por eliminação na própria matriz (com atualização de sinal em trocas de linha), produto da diagonal triangular, conferência com `numpy.linalg.det` e interpretação das propriedades que impactam LU, Cholesky/LDLᵀ, QR e SVD.
 
 Para começar com resultados inteiros, selecione **LU • fatores inteiros (3 × 3)** e
 **LU • Doolittle sem pivotamento**. A matriz é `[[2,1,1],[4,5,3],[2,7,7]]` e
@@ -113,6 +114,7 @@ for etapa in fatoracao.steps:
 - Para SVD com valores tratados como nulos, completamos a base ortogonal. A pseudoinversa aplica corte relativo: com valores pequenos descartados, trata-se de uma pseudoinversa numérica truncada.
 - Cholesky pode simetrizar uma assimetria dentro da tolerância; o passo informa isso e o erro é calculado contra a matriz original.
 - Resíduo pequeno não garante pequeno erro em x para matrizes mal condicionadas. Os algoritmos didáticos não substituem LAPACK em uso científico de grande escala.
+- Determinante muito pequeno em módulo sugere proximidade de singularidade, mas não substitui o diagnóstico por valores singulares e condicionamento κ₂.
 - O projeto é local e não exige banco de dados, conta, API ou servidor externo. Exportações são feitas pelo navegador.
 - Métodos iterativos para Ax=b, cálculo iterativo de autovalores, números complexos e implantação pública estão fora desta versão. O guia teórico contempla comparações com métodos iterativos e a relação entre SVD/autovalores.
 
