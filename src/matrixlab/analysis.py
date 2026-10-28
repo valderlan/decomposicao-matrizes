@@ -9,18 +9,21 @@ def inspect_matrix(value, rtol=DEFAULT_RTOL):
     a = validate_matrix(value)
     validate_rtol(rtol)
     m, n = a.shape
+    square = m == n
     scale = float(np.max(np.abs(a))) or 1.0
     singular = np.linalg.svd(a / scale, compute_uv=False)
     cutoff = rtol * singular[0]
     rank = int(np.count_nonzero(singular > cutoff))
     full_rank = rank == min(m, n)
     condition = float(singular[0] / singular[-1]) if full_rank else float("inf")
-    symmetric = m == n and np.max(np.abs(a - a.T)) <= threshold(a, rtol)
+    symmetric = square and np.max(np.abs(a - a.T)) <= threshold(a, rtol)
     eigenvalues = np.linalg.eigvalsh((a + a.T) / (2 * scale)) * scale if symmetric else None
+    determinant = float(np.linalg.det(a)) if square else None
+    sign_det, logabs_det = np.linalg.slogdet(a) if square else (None, None)
     properties = {
         "rows": m,
         "columns": n,
-        "square": m == n,
+        "square": square,
         "symmetric": bool(symmetric),
         "rank": rank,
         "full_rank": full_rank,
@@ -28,6 +31,9 @@ def inspect_matrix(value, rtol=DEFAULT_RTOL):
         "condition_2": condition,
         "norm_frobenius": float(np.linalg.norm(a)),
         "norm_inf": float(np.linalg.norm(a, ord=np.inf)),
+        "determinant": determinant,
+        "det_sign": None if sign_det is None else int(sign_det),
+        "det_logabs": None if logabs_det is None else float(logabs_det),
         "rtol": rtol,
         "rank_cutoff": float(cutoff * scale),
         "singular_values": (singular * scale).tolist(),
