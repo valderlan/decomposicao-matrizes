@@ -4,51 +4,40 @@
 
 Este manual foi preparado no contexto da disciplina de pós-graduação Álgebra Linear Numérica.
 
-- Autores (discentes): Francisco Valderlan Jorge Nobre e Jarbas.
-- Professor: Valdisio.
+- Autores: Francisco Valderlan Jorge Nobre e Jarbas Rocha Martins.
+- Professor: Gerardo Valdisio Rodrigues Viana.
 
 ## Para quem é este manual
 
-Este material é voltado para quem precisa:
-
-- usar o aplicativo com segurança, sem tentativa e erro;
-- interpretar o diagnóstico numérico antes de escolher o método;
-- justificar tecnicamente a escolha de LU, Cholesky, QR ou SVD;
-- registrar resultados com evidências (passos, resíduos, reconstrução e exportação JSON).
+Este material foi escrito para quem deseja usar o laboratório com segurança, compreender o
+significado dos indicadores numéricos e justificar, de forma técnica, a escolha de cada
+decomposição. Em vez de funcionar apenas como um roteiro de cliques, o texto busca explicar
+o comportamento do aplicativo e o raciocínio matemático por trás dos resultados exibidos.
+Assim, ele pode ser utilizado tanto no estudo individual quanto na preparação de relatórios
+e apresentações da disciplina.
 
 ## O que você consegue fazer com este aplicativo
 
-Dada uma matriz real A (e opcionalmente um vetor b), o sistema permite:
-
-1. validar entrada e limites numéricos;
-2. diagnosticar propriedades relevantes da matriz;
-3. indicar quais métodos estão disponíveis e por quê;
-4. executar uma das 11 variantes de decomposição;
-5. acompanhar o passo a passo com fórmulas e contas substituídas;
-6. resolver Ax=b quando aplicável;
-7. calcular e interpretar determinante com rastreabilidade;
-8. exportar o relatório completo em JSON.
+Ao fornecer uma matriz real A, e opcionalmente um vetor b, o sistema valida os dados,
+diagnostica propriedades numéricas importantes, indica quais algoritmos podem ser aplicados,
+executa a decomposição escolhida e mostra cada etapa com rastreabilidade completa. Além
+disso, quando a resolução de Ax=b é pertinente, o aplicativo acompanha o processo de solução
+com o mesmo nível de detalhamento, incluindo resíduos, reconstrução da matriz e exportação
+de evidências em JSON.
 
 ---
 
-## 1. Início rápido (10 minutos)
+## 1. Início rápido
 
-Se você quer começar agora, siga este roteiro:
+Se você quer começar imediatamente, execute os comandos da Seção 2, selecione um exemplo
+pronto na barra lateral, clique em Analisar matriz e, depois, em Decompor e mostrar os
+passos. Em seguida, percorra as abas Fatores finais, Passo a passo, Solução de Ax=b,
+Comparação e Guia teórico. Esse fluxo já entrega uma visão completa do ciclo de uso:
+entrada, diagnóstico, escolha do método, interpretação numérica e documentação do resultado.
 
-1. Execute os comandos da Seção 2.
-2. Escolha um exemplo pronto na barra lateral.
-3. Clique em Analisar matriz.
-4. Observe posto, condicionamento k2 e det(A).
-5. Escolha um método disponível e clique em Decompor e mostrar os passos.
-6. Compare as abas Fatores finais, Passo a passo e Comparação.
-7. Em Fatores finais, veja Determinante - passo a passo.
-8. Exporte o JSON para anexar no relatório.
-
-Primeiro experimento recomendado:
-
-- LU sem pivotamento em um exemplo simples;
-- LU com pivotamento parcial no mesmo exemplo;
-- comparação do impacto em pivôs, sinal do determinante e estabilidade.
+Para a primeira exploração, vale repetir o mesmo caso em LU sem pivotamento e LU com
+pivotamento parcial. Essa comparação costuma deixar claro por que critérios de estabilidade
+numérica mudam o comportamento do algoritmo mesmo quando a matriz é a mesma.
 
 ### 1.1 Tour visual da interface (com telas)
 
@@ -58,89 +47,89 @@ As imagens abaixo mostram a sequência real de uso do sistema.
 
 ![Tela de entrada e configuração](imagens/manual/01_entrada.png)
 
-O que observar:
-
-- barra lateral com exemplo, tolerância e algarismos exibidos;
-- área de entrada da matriz A e vetor b opcional;
-- prévia matemática da matriz antes da análise.
+Nesta etapa você define o contexto inteiro da execução. A barra lateral controla exemplo,
+tolerância e quantidade de algarismos exibidos; o painel central recebe a matriz A e,
+opcionalmente, o vetor b. A prévia matemática permite verificar imediatamente se a entrada
+foi interpretada do jeito esperado antes de partir para análise e decomposição.
 
 #### Tela 2 - Diagnóstico e decisão do método
 
 ![Tela de diagnóstico e escolha](imagens/manual/02_diagnostico.png)
 
-O que observar:
-
-- métricas centrais: posto, k2 e det(A);
-- tabela de métodos disponíveis/bloqueados;
-- seletor do método e botão para decompor.
+Aqui o aplicativo transforma a entrada em informação de decisão. As métricas de posto,
+condicionamento e determinante aparecem junto da tabela de disponibilidade dos métodos.
+Em termos práticos, este é o ponto em que você decide se deve insistir em LU, migrar para
+QR ou partir direto para SVD, de acordo com as limitações numéricas do caso.
 
 #### Tela 3 - Resultado com fatores finais
 
 ![Tela de fatores finais](imagens/manual/03_resultado_fatores.png)
 
-O que observar:
-
-- identidade da decomposição escolhida;
-- fatores finais (L/U, Q/R, U/Sigma/Vt etc.);
-- validação por reconstrução da matriz.
+Depois da decomposição, o painel exibe a identidade usada e os fatores finais (L/U, Q/R,
+U/Sigma/Vt etc.). O foco aqui é confirmar que os fatores fazem sentido matemático e que a
+reconstrução de A é consistente com o erro numérico esperado no problema.
 
 #### Tela 4 - Navegação passo a passo
 
 ![Tela do passo a passo](imagens/manual/04_passo_a_passo.png)
 
-O que observar:
+![Tela do passo a passo1](imagens/manual/04_passo_a_passo1.png)
 
-- controles Primeiro/Anterior/Próximo/Último;
-- explicação textual da etapa;
-- matrizes antes/depois e contas numéricas do passo.
+Nesta visualização você acompanha o algoritmo como uma sequência de estados. Os botões de
+navegação permitem percorrer cada transformação e observar, em cada passo, objetivo,
+operação, contas substituídas e matrizes antes/depois. Essa aba é especialmente útil para
+aprendizagem, revisão de cálculo e defesa metodológica em relatório.
 
-#### Tela 5 - Determinante com rastreabilidade
+#### Tela 5 - Solução de Ax=b
 
-![Tela do determinante passo a passo](imagens/manual/05_determinante.png)
+![Tela da solução de Ax=b](imagens/manual/06_solucao_axb.png)
 
-O que observar:
+Quando a opção de resolver o sistema está ativada, esta aba mostra o tipo de solução
+obtida, o vetor x calculado e os indicadores de resíduo. O percurso da solução também é
+registrado passo a passo, permitindo enxergar como cada decomposição se converte em um
+procedimento de resolução (substituições, projeções ou pseudoinversa).
 
-- cálculo direto de det(A) por eliminação;
-- atualização de sinal em trocas de linha;
-- conferência com cálculo direto da biblioteca numérica.
+#### Tela 6 - Comparação entre métodos
+
+![Tela da comparação](imagens/manual/07_comparacao.png)
+
+Esta seção oferece uma leitura transversal das famílias de método. Em vez de focar em um
+caso específico, ela organiza hipóteses de aplicabilidade, custo dominante e cenário de uso
+mais adequado, ajudando você a explicar por que uma técnica foi escolhida em detrimento de
+outra.
+
+#### Tela 7 - Guia teórico
+
+![Tela do guia teórico](imagens/manual/08_guia_teorico.png)
+
+O Guia teórico conecta execução prática e fundamentos matemáticos. As seções expansíveis
+retomam conceitos, interpretações e exemplos que sustentam o que apareceu nas abas de cálculo,
+servindo como apoio para estudo e para escrita de justificativas conceituais.
 
 ---
 
 ## 2. Como executar
 
-Pré-requisitos:
-
-- Python 3.11 ou superior;
-- uv instalado no sistema.
-
-Na raiz do projeto:
+O projeto requer Python 3.11 ou superior e o gerenciador uv instalado. Na raiz do projeto,
+execute os comandos abaixo para sincronizar dependências e iniciar o aplicativo:
 
 ```bash
 uv sync --locked
 uv run streamlit run app.py
 ```
 
-Abra no navegador:
-
-- http://localhost:8501
-
-Para encerrar:
-
-- Ctrl+C no terminal.
-
-Observação:
-
-- Não é necessário ativar o ambiente virtual manualmente.
+Em seguida, abra http://localhost:8501 no navegador. Para encerrar a execução, use Ctrl+C
+no terminal. Não é necessário ativar o ambiente virtual manualmente, pois o uv já resolve
+esse fluxo no momento da execução.
 
 ---
 
 ## 3. Mapa da interface
 
-A tela está organizada em três blocos principais:
-
-1. Configuração (barra lateral)
-2. Entrada e diagnóstico
-3. Resultado e interpretação
+A interface foi desenhada em três camadas de trabalho: configuração, entrada/diagnóstico
+e resultado/interpretação. A primeira controla parâmetros globais de sessão; a segunda
+recebe dados e decide aplicabilidade numérica; a terceira organiza os resultados em abas
+com perspectivas diferentes sobre o mesmo cálculo.
 
 ### 3.1 Configuração (barra lateral)
 
@@ -150,36 +139,31 @@ A tela está organizada em três blocos principais:
 | Tolerância relativa 10^-p | Ajusta critério de decisão numérica | Pode mudar disponibilidade de métodos |
 | Algarismos exibidos | Controle de precisão visual | Não altera cálculo interno |
 
+O seletor de exemplos é ideal para iniciar estudos e comparações rápidas. A tolerância,
+por sua vez, influencia interpretações como posto numérico, simetria efetiva e pivôs
+considerados nulos. Já o controle de algarismos atua apenas na apresentação, mantendo os
+cálculos internos em ponto flutuante de dupla precisão.
+
 ### 3.2 Entrada de dados
 
-Você pode informar A em dois modos:
-
-- Texto: aceita espaços, vírgulas, frações e JSON;
-- Grade: edição célula a célula com controle de dimensão.
-
-Limites:
-
-- de 1 x 1 até 10 x 10;
-- apenas valores reais finitos;
-- valores não nulos entre 1e-100 e 1e100.
+A matriz A pode ser fornecida por texto (incluindo frações e JSON) ou por grade editável.
+Em ambos os modos, o aplicativo aplica validações de formato e escala. O objetivo desses
+limites não é restringir teoria, mas preservar legibilidade didática dos passos e evitar
+instabilidades extremas de representação numérica em tempo de execução.
 
 ### 3.3 Diagnóstico e escolha
 
-Após clicar em Analisar matriz, o painel mostra:
-
-- métricas principais;
-- explicações numéricas;
-- disponibilidade dos métodos com justificativa.
+Depois de clicar em Analisar matriz, o sistema resume propriedades numéricas e indica os
+métodos possíveis para o caso específico. Esse diagnóstico não é apenas informativo: ele
+é a base para decisão técnica do algoritmo, principalmente quando o problema está próximo
+de singularidade ou apresenta incompatibilidades com hipóteses estruturais.
 
 ### 3.4 Resultado
 
-Após decompor, o painel abre abas para:
-
-- fatores finais;
-- passo a passo;
-- solução Ax=b;
-- comparação teórica;
-- guia teórico.
+Após decompor, o painel abre abas complementares para leitura dos resultados. A ideia é
+que cada aba responda a uma pergunta distinta: quais fatores foram obtidos, como o método
+evoluiu passo a passo, como o sistema Ax=b foi resolvido, como esse método se compara a
+outros e onde está a fundamentação teórica correspondente.
 
 ---
 
@@ -195,87 +179,94 @@ Após decompor, o painel abre abas para:
 | Condicionamento k2 | sensibilidade da solução a perturbações | k2 alto exige cautela na interpretação de x |
 | det(A) | escala orientada de volume (matriz quadrada) | det próximo de zero sugere proximidade de singularidade |
 
+Essas métricas devem ser lidas em conjunto. Em geral, decisões robustas não surgem de um
+único número isolado, mas da relação entre forma da matriz, posto efetivo e sensibilidade
+estimada. Um exemplo clássico é o caso de determinante pequeno: ele pode sugerir problema
+delicado, mas a confirmação vem ao observar também singular values e condicionamento.
+
 ### 4.2 Leitura prática de k2
 
-Regra operacional:
-
-- k2 perto de 1: problema bem condicionado;
-- k2 moderado: solução ainda confiável, com perda limitada de dígitos;
-- k2 alto: pequenos erros de entrada podem gerar grande erro em x.
+O condicionamento k2 mede o quanto pequenos erros de entrada podem amplificar erros na
+solução. Quando k2 está próximo de 1, o problema tende a ser estável. À medida que cresce,
+a interpretação de x exige mais cautela, porque resíduos pequenos podem coexistir com
+soluções sensíveis. Por isso, no relatório, é recomendável sempre apresentar k2 junto de
+resíduo e erro de reconstrução.
 
 ### 4.3 Leitura prática de det(A)
 
-- det(A) = 0: A singular, não invertível;
-- det(A) != 0: A invertível (quando quadrada);
-- |det(A)| muito pequeno: pode estar perto de singularidade.
-
-Importante:
-
-- det(A) sozinho não substitui análise de posto e condicionamento.
+No caso quadrado, det(A)=0 indica singularidade e ausência de inversa. Quando det(A) é não
+nulo, a matriz é invertível. Entretanto, mesmo com det(A) diferente de zero, valores muito
+pequenos em módulo podem sinalizar proximidade de singularidade numérica. O aplicativo
+inclui sign(det) e log|det| justamente para tornar essa leitura mais estável.
 
 ### 4.4 Sequência recomendada de leitura do diagnóstico
 
-Para não se perder, leia nesta ordem:
-
-1. dimensão e formato (quadrada/retangular);
-2. posto numérico (há dependência linear?);
-3. condicionamento k2 (solução é sensível?);
-4. det(A), quando quadrada (há indício de singularidade?);
-5. tabela de disponibilidade dos métodos (o que é permitido para este caso).
-
-Exemplo de decisão:
-
-- k2 alto + posto deficiente: prefira SVD para interpretação e solução de norma mínima;
-- matriz quadrada com pivôs fracos: prefira LU com pivotamento parcial/total;
-- simétrica positiva definida: prefira Cholesky/LDLT.
+Uma sequência útil para evitar conclusões precipitadas é: primeiro verificar dimensão e
+formato, depois avaliar posto numérico, em seguida interpretar condicionamento e apenas
+então observar determinante e disponibilidade dos métodos. Esse encadeamento reduz o risco
+de escolher algoritmo incompatível com o problema e ajuda a justificar tecnicamente a
+decisão metodológica.
 
 ---
 
-## 5. Determinante no aplicativo
+## 5. Como cada decomposição funciona no aplicativo
 
-O sistema oferece duas camadas sobre determinante:
+As decomposições implementadas foram organizadas para fins didáticos, com rastreabilidade
+de cada operação. A seguir, estão os principais comportamentos de cada família.
 
-1. Diagnóstico rápido:
-- det(A), sign(det(A)) e log|det(A)| (para estabilidade de leitura).
+### 5.1 LU (Doolittle, Crout, parcial e total)
 
-2. Passo a passo direto em Fatores finais:
-- triangulação de A por eliminação;
-- atualização do sinal a cada troca de linha;
-- produto da diagonal triangular;
-- conferência com numpy.linalg.det.
+Nas variantes LU, o sistema realiza eliminação de Gauss e registra explicitamente pivôs,
+multiplicadores e atualizações de linha. Em Doolittle, a diagonal unitária fica em L; em
+Crout, a normalização final move essa convenção para U. No pivotamento parcial, a escolha
+do pivô percorre a coluna ativa; no total, busca-se o maior elemento no bloco restante,
+incluindo trocas de coluna. Essa diferença impacta diretamente estabilidade e sinal do
+determinante.
 
-### 5.1 Regras usadas no passo a passo
+### 5.2 Cholesky e LDLT
 
-Durante a eliminação:
+Essas variantes são reservadas a matrizes simétricas positivas definidas dentro da tolerância
+numérica escolhida. Em Cholesky, a fatoração busca A=LL^T, com diagonal positiva em L.
+Em LDLT, a decomposição evita raízes quadradas explícitas, mantendo L unitária e isolando
+escalas em D. Ambas são particularmente eficientes quando suas hipóteses são satisfeitas.
 
-- troca de linhas inverte o sinal do determinante;
-- soma de múltiplo de uma linha em outra não altera o determinante.
+### 5.3 QR (Gram-Schmidt, Householder e Givens)
 
-Fórmula final usada:
+O aplicativo oferece duas abordagens por projeções (Gram-Schmidt clássico e modificado)
+e duas por transformações ortogonais (Householder e Givens). As versões por projeção são
+muito didáticas para visualizar formação de base ortonormal e matriz R, enquanto Householder
+e Givens tendem a ser mais robustas em cenários com dependência ou quase dependência
+linear entre colunas.
 
-- det(A) = sinal acumulado x produto dos elementos diagonais da triangular.
+### 5.4 SVD espectral
+
+A SVD é construída por abordagem espectral a partir de A^T A, com autovalores/autovetores
+simétricos, reavaliação de magnitudes e normalização das direções singulares. O processo
+é acompanhado por verificações de ortogonalidade e reconstrução, e também por avisos de
+precisão em situações mal condicionadas. É a alternativa mais geral para lidar com posto
+deficiente e soluções de norma mínima.
+
+### 5.5 Determinante com rastreabilidade
+
+Além do valor direto mostrado no diagnóstico, o painel de fatores finais apresenta o cálculo
+de det(A) por eliminação com atualização de sinal em trocas de linha. Isso permite conectar
+conceitos teóricos com o comportamento real do algoritmo, inclusive em casos em que pivôs
+pequenos afetam a confiabilidade numérica do resultado.
 
 ---
 
-## 6. Guia de decisão dos métodos
+## 6. Solução de Ax=b no fluxo da aplicação
 
-Use este quadro para escolher método de forma objetiva:
+Quando a opção de resolver Ax=b está habilitada, o aplicativo usa a decomposição escolhida
+para construir o procedimento de solução correspondente. Em LU e nas variantes triangulares,
+o caminho passa por substituições sucessivas e regressivas. Em QR, a solução é ligada à
+projeção no subespaço das colunas. Em SVD, a pseudoinversa numérica permite tratar casos
+sem solução exata e obter solução de norma mínima quando apropriado.
 
-| Situação de A | Método preferencial | Alternativas | Observação |
-|---|---|---|---|
-| Quadrada, pivôs estáveis | LU sem pivotamento | LU parcial/total | Mais simples para didática |
-| Quadrada, pivô fraco ou zero | LU com pivotamento parcial | LU total, SVD | Mais robusto |
-| Simétrica positiva definida | Cholesky ou LDLT | LU, QR | Menor custo que LU |
-| Retangular m >= n (ajuste) | QR | SVD | Forte para mínimos quadrados |
-| Posto deficiente ou singular | SVD | QR Householder/Givens | Melhor para norma mínima |
-| Retangular geral | QR Householder/Givens | SVD | LU/Cholesky podem não se aplicar |
-
-Quando priorizar SVD:
-
-- inconsistência em Ax=b;
-- posto deficiente;
-- necessidade de solução de norma mínima;
-- análise mais robusta de direções pequenas.
+A leitura dos resultados deve considerar tipo de solução, resíduo absoluto e resíduo
+relativo escalado. Um ponto essencial é que resíduo pequeno não garante erro pequeno em x
+quando k2 é elevado. Por isso, a interpretação correta sempre combina solução, resíduo e
+diagnóstico de condicionamento.
 
 ---
 
@@ -283,65 +274,50 @@ Quando priorizar SVD:
 
 ### 7.1 Fatores finais
 
-Leia nesta ordem:
-
-1. identidade da decomposição;
-2. fatores produzidos;
-3. erro de reconstrução;
-4. seção Determinante - passo a passo.
-
-Pergunta de validação:
-
-- os fatores reconstruem A com erro pequeno?
+Esta aba responde à pergunta: qual estrutura algébrica o método produziu? Aqui você confere
+a identidade da decomposição, inspeciona fatores finais e valida a reconstrução de A.
+Também é o ponto natural para relacionar fatoração, determinante e estabilidade observada.
 
 ### 7.2 Passo a passo
 
-Cada passo registra:
-
-- objetivo;
-- operação aplicada;
-- contas com substituição numérica;
-- estado antes/depois;
-- destaque visual.
-
-Use esta aba para justificar metodologia em relatório.
+A aba Passo a passo transforma o algoritmo em narrativa matemática. Cada etapa explicita
+o que foi feito, por que foi feito e qual foi o efeito numérico. Esse nível de detalhe é
+fundamental para estudo, auditoria de cálculo e redação de justificativas técnicas.
 
 ### 7.3 Solução de Ax=b
 
-Para a solução, verifique:
-
-- tipo de solução (única, mínimos quadrados, norma mínima);
-- resíduo ||Ax-b||2;
-- resíduo relativo escalado.
-
-Lembrete:
-
-- resíduo pequeno não garante erro pequeno em x quando k2 é alto.
+Nesta aba, o foco muda de fatoração para resolução. O aplicativo mostra não apenas o vetor
+final, mas o percurso numérico que levou até ele, incluindo tratamento de casos de mínimos
+quadrados e pseudoinversa. Isso facilita distinguir solução exata de solução aproximada,
+algo essencial em problemas com singularidade ou inconsistência.
 
 ### 7.4 Comparação
 
-Use para discussão de custo, hipótese e adequação metodológica.
+A aba de comparação oferece contexto metodológico. Ela organiza hipótese de uso, custo
+dominante e finalidade típica de cada família. Em relatórios, esse quadro serve para justificar
+escolha de técnica sem depender apenas de argumento empírico.
 
 ### 7.5 Guia teórico
 
-Use para fundamentação conceitual e revisão de exemplos.
+O Guia teórico funciona como base de revisão e aprofundamento. Ele conecta linguagem da
+interface com fundamentos de álgebra linear numérica, ajudando a transformar observação de
+tela em entendimento conceitual mais sólido.
 
 ### 7.6 Como apresentar este resultado em sala
 
-Sequência sugerida para explicação oral:
-
-1. mostrar o diagnóstico (posto, k2, det(A));
-2. justificar a escolha do método;
-3. exibir dois passos críticos da decomposição (um pivô e uma atualização);
-4. mostrar fatores finais e erro de reconstrução;
-5. concluir com resíduo da solução e interpretação numérica.
-
-Essa ordem ajuda a evitar uma apresentação apenas operacional, destacando o raciocínio
-numérico por trás da escolha do método.
+Uma apresentação clara costuma seguir esta ordem: diagnóstico, escolha do método,
+demonstração de dois passos críticos, validação por reconstrução e interpretação final da
+solução. Esse encadeamento destaca raciocínio numérico e evita que a exposição fique apenas
+descritiva ou operacional.
 
 ---
 
 ## 8. Roteiros pedagógicos sugeridos
+
+Os roteiros abaixo podem ser usados como trilhas de estudo progressivo. No roteiro de LU,
+a ideia é observar efeito de pivotamento e estabilidade. No roteiro SPD, o objetivo é
+comparar eficiência e hipóteses de Cholesky/LDLT. No roteiro de posto deficiente, a meta
+é entender por que SVD se torna central quando há perda de unicidade ou inconsistência.
 
 ### 8.1 Roteiro A - Fundamentos de LU
 
@@ -377,11 +353,10 @@ numérico por trás da escolha do método.
 | Valores não aceitos | escala extrema | reescalar matriz e vetor |
 | Resultado instável | condicionamento alto | comparar com SVD e relatar sensibilidade |
 
-Boas práticas:
-
-- mantenha tolerância consistente entre comparações;
-- compare pelo menos dois métodos quando possível;
-- registre erro de reconstrução e resíduo no relatório.
+Esses sintomas devem ser interpretados como sinais de incompatibilidade entre hipótese do
+método e estrutura numérica do problema, e não como erro da ferramenta em si. Em geral,
+combinar ajuste de tolerância, reescalonamento e troca de família de método resolve a maior
+parte dos casos de execução problemática.
 
 ---
 
@@ -397,6 +372,9 @@ Antes de finalizar um relatório, confirme:
 6. observações sobre estabilidade numérica;
 7. JSON exportado anexado.
 
+Esse checklist ajuda a manter consistência entre cálculo, interpretação e comunicação dos
+resultados, reduzindo lacunas comuns em relatórios de análise numérica.
+
 ---
 
 ## 11. Documentação complementar
@@ -409,8 +387,5 @@ Antes de finalizar um relatório, confirme:
 
 ---
 
-## 12. Observações finais
 
-Este laboratório é didático. Ele foi desenhado para transparência dos cálculos e rastreabilidade
-pedagógica. Para problemas científicos de grande escala, use bibliotecas numéricas
-especializadas com rotinas otimizadas de produção.
+
