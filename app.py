@@ -246,6 +246,178 @@ def safe_json(value):
     return value
 
 
+def latex_number(value, digits=10):
+    text = f"{float(value):.{digits}g}"
+    if "e" in text:
+        mantissa, exponent = text.split("e")
+        return rf"{mantissa}\times 10^{{{int(exponent)}}}"
+    return text
+
+
+def product_expression(values, digits=10):
+    terms = [f"({latex_number(v, digits)})" for v in values]
+    return r"\cdot".join(terms) if terms else "1"
+
+
+def permutation_sign(matrix):
+    return int(np.rint(np.linalg.det(matrix)))
+
+
+def show_determinant_walkthrough(a, decomposition, digits, rtol):
+    rows, cols = a.shape
+    if rows != cols:
+        st.info(
+            "det(A) não existe para matrizes retangulares. Nesses casos, QR e SVD continuam "
+            "válidas para fatoração e mínimos quadrados."
+        )
+        return
+
+    n = rows
+    u = a.astype(float).copy()
+    sign = 1
+    tol = rtol * max(1.0, float(np.linalg.norm(a, ord=np.inf)))
+
+    st.markdown("**Cálculo de det(A) diretamente da matriz A**")
+    st.write(
+        "Usamos eliminação para triangularizar A. As operações de linha usadas são: "
+        "troca de linhas (muda o sinal do determinante) e soma de múltiplo de linha "
+        "(não altera o determinante)."
+    )
+    st.latex(r"L_i\leftrightarrow L_j\Rightarrow \det\to-\det")
+    st.latex(r"L_i\leftarrow L_i-\lambda L_j\Rightarrow \det\ \text{inalterado}")
+    st.markdown("Matriz inicial A")
+    st.latex(latex_matrix(a, digits))
+
+    singular = False
+    step = 1
+    for k in range(n):
+        pivot_row = k + int(np.argmax(np.abs(u[k:, k])))
+        pivot_candidate = float(u[pivot_row, k])
+
+        with st.expander(
+            f"Passo {step} · escolher pivô na coluna {k + 1}", expanded=step <= 2
+        ):
+            st.write(
+                f"No bloco ativo, escolhemos o pivô em ({pivot_row + 1}, {k + 1}) = {pivot_candidate:.10g}."
+            )
+            st.write(f"Limiar numérico para pivô: {tol:.3g}.")
+            st.latex(
+                rf"|u_{{{pivot_row + 1},{k + 1}}}|={latex_number(abs(pivot_candidate), digits)}"
+            )
+            st.latex(latex_matrix(u, digits))
+        step += 1
+
+        if abs(pivot_candidate) <= tol:
+            singular = True
+            break
+
+        if pivot_row != k:
+            before = u.copy()
+            u[[k, pivot_row], :] = u[[pivot_row, k], :]
+            sign *= -1
+            with st.expander(
+                f"Passo {step} · trocar linhas {k + 1} e {pivot_row + 1}",
+                expanded=step <= 2,
+            ):
+                st.write("Troca de linhas muda o sinal do determinante.")
+                st.latex(r"\det\leftarrow -\det")
+                st.latex(rf"\text{{sinal acumulado}}={sign}")
+                show_matrices(
+                    {"U_antes": before, "U_depois": u},
+                    digits,
+                    matrix_order=["U_antes", "U_depois"],
+                )
+            step += 1
+
+        pivot = float(u[k, k])
+        for i in range(k + 1, n):
+            if abs(u[i, k]) <= tol:
+                continue
+            before = u.copy()
+            multiplier = float(u[i, k] / pivot)
+            u[i, k:] = u[i, k:] - multiplier * u[k, k:]
+            u[i, k] = 0.0
+            with st.expander(
+                f"Passo {step} · eliminar entrada ({i + 1}, {k + 1})",
+                expanded=step <= 2,
+            ):
+                st.write(
+                    f"Aplicamos L{i + 1} ← L{i + 1} − ({multiplier:.10g})L{k + 1}. "
+                    "Esta operação não altera o determinante."
+                )
+                st.latex(
+                    rf"L_{{{i + 1}}}\leftarrow L_{{{i + 1}}}-({latex_number(multiplier, digits)})L_{{{k + 1}}}"
+                )
+                st.latex(r"\det\ \text{inalterado}")
+                show_matrices(
+                    {"U_antes": before, "U_depois": u},
+                    digits,
+                    matrix_order=["U_antes", "U_depois"],
+                )
+            step += 1
+
+    det_direct = float(np.linalg.det(a))
+    sign_direct, logabs_direct = np.linalg.slogdet(a)
+
+    if singular:
+        det_elimination = 0.0
+        st.warning(
+            "Encontramos pivô numericamente nulo durante a eliminação. Assim, det(A)=0 "
+            "no critério numérico adotado."
+        )
+    else:
+        diagonal = np.diag(u)
+        det_triangular = float(np.prod(diagonal))
+        det_elimination = float(sign * det_triangular)
+        st.markdown("**Passo final · produto da diagonal da triangular**")
+        st.latex(r"\det(A)=\text{sinal}\cdot\prod_{i=1}^{n}u_{ii}")
+        st.latex(
+            rf"\det(U)={product_expression(diagonal, digits)}\approx {latex_number(det_triangular, digits)}"
+        )
+        st.latex(
+            rf"\det(A)\approx ({sign})\cdot {latex_number(det_triangular, digits)}={latex_number(det_elimination, digits)}"
+        )
+
+    st.markdown("**Conferência com NumPy**")
+    st.latex(
+        rf"\det(A)_{{eliminacao}}\approx {latex_number(det_elimination, digits)},\quad "
+        rf"\det(A)_{{numpy}}\approx {latex_number(det_direct, digits)}"
+    )
+    if sign_direct != 0:
+        st.latex(
+            rf"\operatorname{{sign}}(\det(A))={int(sign_direct)},\quad "
+            rf"\log\left(|\det(A)|\right)\approx {latex_number(logabs_direct, digits)}"
+        )
+    abs_error = abs(det_elimination - det_direct)
+    rel_error = abs_error / max(abs(det_direct), np.finfo(float).tiny)
+    st.latex(
+        rf"|\Delta|\approx {latex_number(abs_error, digits)},\quad "
+        rf"\text{{erro relativo}}\approx {latex_number(rel_error, digits)}"
+    )
+
+    st.markdown("**Propriedades do determinante e impacto nas decomposições**")
+    st.write(
+        "- det(A)=0 implica matriz singular: não há inversa e não há solução única garantida para Ax=b."
+    )
+    st.write(
+        "- det(A)≠0 (com A quadrada) implica invertibilidade e solução única para Ax=b."
+    )
+    st.write(
+        "- Em LU com pivotamento, cada troca de linha muda o sinal do determinante."
+    )
+    st.write(
+        "- Em Cholesky/LDLᵀ desta aplicação, a hipótese é positiva definida: isso força det(A)>0 "
+        "(e, teoricamente, todos os menores principais líderes positivos)."
+    )
+    st.write(
+        "- QR e SVD existem mesmo quando det(A)=0; por isso continuam úteis em posto deficiente."
+    )
+    st.write(
+        "- |det(A)| muito pequeno sugere proximidade de singularidade, mas condicionamento (κ₂) e "
+        "valores singulares descrevem melhor a sensibilidade numérica."
+    )
+
+
 def load_example():
     example = EXAMPLES[st.session_state.example]
     st.session_state.matrix_source_text = example["matrix"]
@@ -394,7 +566,7 @@ diagnostic = st.session_state.analysis_result
 props = diagnostic["properties"]
 st.divider()
 st.subheader("2 · Diagnóstico e escolha")
-metrics = st.columns(4)
+metrics = st.columns(5)
 metrics[0].metric("Dimensão", f"{props['rows']} × {props['columns']}")
 metrics[1].metric("Posto numérico", props["rank"])
 metrics[2].metric("Simétrica", "Sim" if props["symmetric"] else "Não")
@@ -405,6 +577,11 @@ metrics[3].metric(
         if math.isfinite(props["condition_2"])
         else "∞ (numérico)"
     ),
+)
+det_value = props.get("determinant")
+metrics[4].metric(
+    "det(A)",
+    (f"{det_value:.3g}" if det_value is not None else "N/A (retangular)"),
 )
 with st.expander("Propriedades e interpretação"):
     st.write(
@@ -418,6 +595,55 @@ with st.expander("Propriedades e interpretação"):
     )
     for message in diagnostic["warnings"]:
         st.warning(message)
+
+with st.expander("Determinante: cálculo e relação com decomposições"):
+    if det_value is None:
+        st.info(
+            "det(A) é definido apenas para matrizes quadradas. Para matrizes retangulares, "
+            "QR e SVD continuam válidas, mas sem determinante clássico."
+        )
+    else:
+        det_sign = props.get("det_sign")
+        det_logabs = props.get("det_logabs")
+        st.write(
+            "O painel calcula det(A) com np.linalg.det e também mostra sign/log|det| "
+            "com np.linalg.slogdet para interpretação numérica estável."
+        )
+        st.latex(rf"\det(A)\approx {det_value:.10g}")
+        if det_sign == 0:
+            st.write(
+                "Sign = 0 indica singularidade numérica: não há inversa e pode não existir solução única para Ax=b."
+            )
+        elif det_logabs is not None:
+            st.latex(
+                rf"\operatorname{{sign}}(\det(A))={int(det_sign)},\quad \log\left(|\det(A)|\right)\approx {det_logabs:.10g}"
+            )
+
+        st.markdown("**Como calcular via decomposição**")
+        st.latex(r"A=LU\Rightarrow\det(A)=\det(L)\det(U)")
+        st.latex(r"PA=LU\Rightarrow\det(A)=\det(P)\det(L)\det(U),\ \det(P)\in\{-1,+1\}")
+        st.latex(r"PAC=LU\Rightarrow\det(A)=\det(P)\det(C)\det(L)\det(U)")
+        st.latex(r"A=LL^T\Rightarrow\det(A)=\det(L)^2>0")
+        st.latex(r"A=LDL^T\Rightarrow\det(A)=\det(D)\ \text{(L unitária)}")
+        st.latex(
+            r"A=QR\Rightarrow\det(A)=\det(Q)\det(R),\ |\det(Q)|=1\ \text{(A quadrada)}"
+        )
+        st.latex(
+            r"A=U\Sigma V^T\Rightarrow|\det(A)|=\prod_i\sigma_i\ \text{(A quadrada)}"
+        )
+
+        st.markdown("**Propriedades importantes**")
+        st.write("- det(A)=0 implica matriz singular e não invertível.")
+        st.write("- det(A)≠0 implica matriz invertível e solução única para Ax=b.")
+        st.write(
+            "- Cada troca de linha/coluna em pivotamento muda o sinal do determinante."
+        )
+        st.write(
+            "- Em Cholesky de matriz positiva definida, o determinante é sempre positivo."
+        )
+        st.write(
+            "- Em SVD quadrada, valores singulares pequenos tornam |det(A)| pequeno."
+        )
 table = pd.DataFrame(
     [
         {
@@ -509,6 +735,12 @@ with factors_tab:
         st.info(
             "No pivotamento total: PAC=LU. A matriz original é PᵀLUCᵀ e a solução original é x=Cz."
         )
+    st.divider()
+    st.markdown("### Determinante · passo a passo")
+    st.caption(
+        "Contas do determinante diretamente da matriz A e propriedades para interpretar as decomposições."
+    )
+    show_determinant_walkthrough(a, result, digits, rtol)
 with steps_tab:
     st.caption(
         "Clique em Próximo para acompanhar os cálculos; Anterior permite revisar. Primeiro e Último levam aos extremos."

@@ -9,18 +9,23 @@ def inspect_matrix(value, rtol=DEFAULT_RTOL):
     a = validate_matrix(value)
     validate_rtol(rtol)
     m, n = a.shape
+    square = m == n
     scale = float(np.max(np.abs(a))) or 1.0
     singular = np.linalg.svd(a / scale, compute_uv=False)
     cutoff = rtol * singular[0]
     rank = int(np.count_nonzero(singular > cutoff))
     full_rank = rank == min(m, n)
     condition = float(singular[0] / singular[-1]) if full_rank else float("inf")
-    symmetric = m == n and np.max(np.abs(a - a.T)) <= threshold(a, rtol)
-    eigenvalues = np.linalg.eigvalsh((a + a.T) / (2 * scale)) * scale if symmetric else None
+    symmetric = square and np.max(np.abs(a - a.T)) <= threshold(a, rtol)
+    eigenvalues = (
+        np.linalg.eigvalsh((a + a.T) / (2 * scale)) * scale if symmetric else None
+    )
+    determinant = float(np.linalg.det(a)) if square else None
+    sign_det, logabs_det = np.linalg.slogdet(a) if square else (None, None)
     properties = {
         "rows": m,
         "columns": n,
-        "square": m == n,
+        "square": square,
         "symmetric": bool(symmetric),
         "rank": rank,
         "full_rank": full_rank,
@@ -28,6 +33,9 @@ def inspect_matrix(value, rtol=DEFAULT_RTOL):
         "condition_2": condition,
         "norm_frobenius": float(np.linalg.norm(a)),
         "norm_inf": float(np.linalg.norm(a, ord=np.inf)),
+        "determinant": determinant,
+        "det_sign": None if sign_det is None else int(sign_det),
+        "det_logabs": None if logabs_det is None else float(logabs_det),
         "rtol": rtol,
         "rank_cutoff": float(cutoff * scale),
         "singular_values": (singular * scale).tolist(),
@@ -39,21 +47,27 @@ def inspect_matrix(value, rtol=DEFAULT_RTOL):
             reason = (
                 "Aplicável a matrizes reais, inclusive retangulares e singulares."
                 if method == "svd"
-                else "Reflexões/rotações permitem QR mesmo com colunas dependentes."
-                if method in {"qr_householder", "qr_givens"}
-                else "As colunas podem ser ortonormalizadas sob a tolerância escolhida."
-                if method.startswith("qr_")
-                else "Simetria e pivôs positivos foram verificados."
-                if method in {"cholesky", "ldlt"}
-                else "A eliminação e as condições dos pivôs foram verificadas."
+                else (
+                    "Reflexões/rotações permitem QR mesmo com colunas dependentes."
+                    if method in {"qr_householder", "qr_givens"}
+                    else (
+                        "As colunas podem ser ortonormalizadas sob a tolerância escolhida."
+                        if method.startswith("qr_")
+                        else (
+                            "Simetria e pivôs positivos foram verificados."
+                            if method in {"cholesky", "ldlt"}
+                            else "A eliminação e as condições dos pivôs foram verificadas."
+                        )
+                    )
+                )
             )
             if m == n and rank < n and method.startswith("lu_"):
-                reason += (
-                    " Fatoração possível, mas há posto deficiente e não há solução única garantida."
-                )
+                reason += " Fatoração possível, mas há posto deficiente e não há solução única garantida."
             if result.warnings:
                 reason += " " + " ".join(result.warnings)
-            availability.append({"id": method, "name": name, "available": True, "reason": reason})
+            availability.append(
+                {"id": method, "name": name, "available": True, "reason": reason}
+            )
         except MethodError as exc:
             availability.append(
                 {"id": method, "name": name, "available": False, "reason": str(exc)}
