@@ -39,7 +39,7 @@ Para a primeira exploração, vale repetir o mesmo caso em LU sem pivotamento e 
 pivotamento parcial. Essa comparação costuma deixar claro por que critérios de estabilidade
 numérica mudam o comportamento do algoritmo mesmo quando a matriz é a mesma.
 
-### 1.1 Tour visual da interface (com telas)
+### 1.1 Tour visual da interface
 
 As imagens abaixo mostram a sequência real de uso do sistema.
 
@@ -360,24 +360,7 @@ parte dos casos de execução problemática.
 
 ---
 
-## 10. Checklist para relatório técnico
-
-Antes de finalizar um relatório, confirme:
-
-1. matriz A e vetor b documentados;
-2. método escolhido e justificativa técnica;
-3. principais métricas (posto, k2, det(A));
-4. evidência de reconstrução;
-5. evidência de resíduo;
-6. observações sobre estabilidade numérica;
-7. JSON exportado anexado.
-
-Esse checklist ajuda a manter consistência entre cálculo, interpretação e comunicação dos
-resultados, reduzindo lacunas comuns em relatórios de análise numérica.
-
----
-
-## 11. Documentação complementar
+## 10. Documentação complementar
 
 - README.md
 - docs/GUIA_TEORICO.md
